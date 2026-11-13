@@ -1,0 +1,31 @@
+[project]
+name = "freelance-hub-backend"
+version = "0.1.0"
+requires-python = ">=3.13"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-p no:cacheprovider -q"
+
+[tool.ruff]
+line-length = 110
+target-version = "py313"
+cache-dir = "/tmp/.ruff_cache"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "S"]
+ignore = ["B008"]  # FastAPI Depends() in defaults
+
+[tool.ruff.lint.isort]
+known-third-party = ["alembic"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101", "S105", "S106", "S107", "S108"]
+# 모델에 보내는 프롬프트 문장은 줄을 바꾸면 내용이 바뀐다
+"app/analysis/review.py" = ["E501"]
+
+[tool.mypy]
+python_version = "3.13"
+cache_dir = "/tmp/.mypy_cache"
+ignore_missing_imports = true

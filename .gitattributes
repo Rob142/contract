@@ -1,0 +1,9 @@
+# 맥·윈도우가 섞여도 줄바꿈이 바뀌지 않게 한다 (컨테이너는 리눅스라 LF가 필요)
+* text=auto eol=lf
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+*.pdf binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.woff2 binary

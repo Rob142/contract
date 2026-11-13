@@ -1,0 +1,24 @@
+# 비밀값 (절대 커밋 금지)
+.env
+.env.*
+!.env.example
+
+# 파이썬
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+
+# 프론트
+node_modules/
+dist/
+*.tsbuildinfo
+
+# 운영체제·편집기
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+*.log

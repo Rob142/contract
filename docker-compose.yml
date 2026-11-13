@@ -1,0 +1,99 @@
+name: freelance-hub
+
+x-backend-env: &backend-env
+  FH_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+  FH_ENVIRONMENT: local
+  FH_COOKIE_SECURE: "false"   # 로컬 http 개발용. 운영은 true
+  FH_ALLOWED_ORIGINS: '["http://localhost:${WEB_PORT:-5173}","http://127.0.0.1:${WEB_PORT:-5173}"]'
+  FH_STORAGE_ROOT: /data/files
+  TZ: Asia/Seoul
+  # 윈도우에서는 코드 수정이 컨테이너에 알림으로 전달되지 않아 폴링으로 감지한다 (.env의 FILE_POLLING=true)
+  WATCHFILES_FORCE_POLLING: ${FILE_POLLING:-false}
+
+services:
+  db:
+    image: postgres:17
+    container_name: freelance-hub-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      TZ: Asia/Seoul
+      PGTZ: Asia/Seoul
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5442}:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # 스키마 변경은 Alembic 마이그레이션으로만 적용한다
+  migrate:
+    build: ./backend
+    command: alembic upgrade head
+    environment: *backend-env
+    volumes:
+      - ./backend:/app
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    build: ./backend
+    container_name: freelance-hub-api
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    environment: *backend-env
+    ports:
+      - "127.0.0.1:${API_PORT:-8010}:8000"
+    volumes:
+      - ./backend:/app          # 코드 수정 시 자동 재시작
+      - file-data:/data/files   # 비공개 파일 저장소
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  # 추출·OCR·분석을 처리하는 작업자. 원본 파일은 api와 같은 저장소 볼륨을 쓴다
+  worker:
+    build: ./backend
+    container_name: freelance-hub-worker
+    # 개발용: 코드가 바뀌면 작업자를 다시 띄운다 (처리 중 작업은 점유 만료 후 다른 시도로 이어진다)
+    command: watchfiles --filter python "python -m app.worker" app
+    environment:
+      <<: *backend-env
+      FH_OCR_ENGINE: tesseract
+    volumes:
+      - ./backend:/app
+      - file-data:/data/files
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    stop_grace_period: 30s
+
+  web:
+    image: node:22-alpine
+    container_name: freelance-hub-web
+    user: node                 # uid 1000 = 호스트 사용자와 같아 파일 권한 문제가 없다
+    working_dir: /app
+    command: sh -c "npm install --no-audit --no-fund && npm run dev -- --host 0.0.0.0"
+    environment:
+      API_PROXY_TARGET: http://api:8000
+      API_SCHEMA_URL: http://api:8000/api/openapi.json
+      FILE_POLLING: ${FILE_POLLING:-false}
+    ports:
+      - "${WEB_BIND:-127.0.0.1}:${WEB_PORT:-5173}:5173"   # LAN 공개는 .env의 WEB_BIND=0.0.0.0
+    volumes:
+      - ./frontend:/app
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  db-data:
+  file-data:
