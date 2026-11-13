@@ -51,7 +51,7 @@
 
 ### 1-4. 저장소와 작업 브랜치
 
-- 이 폴더가 이미 저장소면(`git rev-parse --is-inside-work-tree`) 건너뛴다. 아니면 사용자에게 GitHub 주소를 받아 `git clone <주소>`로 받고, 그 폴더로 이동한다.
+- 이 폴더가 이미 저장소면(`git rev-parse --is-inside-work-tree`) 건너뛴다. 아니면 `git clone https://github.com/Rob142/contract.git`로 받고 `contract` 폴더로 이동한다.
 - 비공개 저장소라 인증에 실패하면
   - 윈도우: Git 설치에 포함된 로그인 창(브라우저)이 뜨니 GitHub로 로그인하라고 안내한다.
   - 맥: `gh`가 없으면 `brew install gh`로 설치한 뒤 `gh auth login --web`을 실행한다. 화면의 코드를 브라우저에 입력하라고 안내한다. Homebrew가 없으면 GitHub Desktop 설치를 권한다.

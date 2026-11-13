@@ -3,12 +3,17 @@
 AI 기반 프리랜서 업무 통합 관리 플랫폼 (팀 프로젝트 MVP)
 계약서 업로드·조건 확인 → AI 계약 분석 → 프로젝트·칸반 → 인보이스·입금 관리
 
+- 저장소: https://github.com/Rob142/contract
+- 클론 주소: `https://github.com/Rob142/contract.git`
+
 ---
 
 ## 처음 시작하기 (아무것도 몰라도 돼요)
 
 1. **Codex** 또는 **Claude Code**를 연다.
 2. [`환경_세팅.md`](환경_세팅.md) 내용을 **전부 복사해서 붙여 넣는다.**
+   - 복사하기 쉬운 원문 보기: https://raw.githubusercontent.com/Rob142/contract/main/환경_세팅.md
+   - 이 문서는 저장소를 받기 전에 써요. 프로젝트 받기(클론)도 AI가 해요.
 3. AI가 실행해도 되냐고 물으면 **허용**을 누르고, 시키는 대로 누른다.
 
 Git과 Docker 설치, 프로젝트 받기, 내 컴퓨터에 맞는 포트 설정, 실행까지 AI가 다 해요.
