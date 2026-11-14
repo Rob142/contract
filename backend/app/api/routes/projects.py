@@ -37,6 +37,7 @@ from app.services.projects import (
     next_position,
     set_status,
 )
+from app.services.templates import apply_template
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
@@ -76,8 +77,12 @@ def create_project(
         start_date=body.start_date,
         due_date=body.due_date,
         contract_amount=body.contract_amount,
+        included_revisions=body.included_revisions,
     )
     db.add(project)
+    db.flush()
+    if body.use_template:
+        apply_template(db, project.id, project.job_type, project.start_date, project.due_date)
     db.commit()
     return get_detail(db, user.id, project.id)
 
@@ -100,7 +105,13 @@ def update_project(
     assert_version(project.updated_at, body.version)
 
     changes = body.model_dump(exclude_unset=True, exclude={"version"})
-    required = {"name", "client_id", "job_type", "contract_amount", "status"}
+    required = {
+        "name",
+        "client_id",
+        "job_type",
+        "contract_amount",
+        "status",
+    }  # included_revisions는 null 허용
     cleared = sorted(k for k, v in changes.items() if v is None and k in required)
     if cleared:
         raise AppError(422, "validation_error", "these fields cannot be empty", {"fields": cleared})

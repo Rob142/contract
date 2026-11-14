@@ -168,7 +168,12 @@ def get_detail(db: Session, owner_id: UUID, project_id: UUID) -> ProjectDetail:
                 }
             )
         )
-    return ProjectDetail(**summary.model_dump(), contract_id=contract_id, payment_terms=out_terms)
+    return ProjectDetail(
+        **summary.model_dump(),
+        contract_id=contract_id,
+        included_revisions=row.Project.included_revisions,
+        payment_terms=out_terms,
+    )
 
 
 def get_owned_project(db: Session, owner_id: UUID, project_id: UUID, *, lock: bool = False) -> Project:

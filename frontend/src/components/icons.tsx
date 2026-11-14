@@ -60,3 +60,19 @@ export const ReceiptIcon = (p: IconProps) => (
     <path d="M9 8h6M9 12h6" />
   </Svg>
 )
+
+/** 서류·정산: 장부 */
+export const LedgerIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="4" y="3" width="16" height="18" rx="2" />
+    <path d="M8 8h8M8 12h8M8 16h4" />
+  </Svg>
+)
+
+/** 포트폴리오: 가방 */
+export const PortfolioIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="3" y="7" width="18" height="13" rx="2" />
+    <path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M3 13h18" />
+  </Svg>
+)

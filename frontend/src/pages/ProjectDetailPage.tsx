@@ -1,3 +1,4 @@
+import { AttachmentsCard, FeedbackCard, RevisionCard, ShareCard } from '../components/ProjectSharePanels'
 import { useState } from 'react'
 import { Link, useOutletContext, useParams, useSearchParams } from 'react-router'
 
@@ -6,7 +7,15 @@ import { ApiError } from '../api/client'
 import { useContract, useContracts } from '../api/contracts'
 import { useInvoices } from '../api/invoices'
 import { messageOf } from '../api/messages'
-import { useProject, useTasks, useUnlinkContract, type ProjectDetail, type Task, type TaskStatus } from '../api/projects'
+import {
+  useProject,
+  useTasks,
+  useUnlinkContract,
+  useUpdateProject,
+  type ProjectDetail,
+  type Task,
+  type TaskStatus,
+} from '../api/projects'
 import { Dialog } from '../components/Dialog'
 import { KanbanBoard } from '../components/KanbanBoard'
 import { UploadVersionButton } from '../components/UploadVersionButton'
@@ -121,6 +130,54 @@ function LinkContractDialog({
         </ul>
       )}
     </Dialog>
+  )
+}
+
+/** 모든 작업을 마친 진행 중 프로젝트에 완료 처리를 제안한다. 아직 청구하지 않은 금액이 있으면 함께 알린다 */
+function CompleteBanner({ project }: { project: ProjectDetail }) {
+  const invoices = useInvoices('all', '', project.id)
+  const update = useUpdateProject(project.id)
+  if (project.status !== 'active' || project.total_tasks === 0 || project.done_tasks < project.total_tasks) return null
+
+  const hasTerms = project.payment_terms.length > 0
+  const unbilledTerms = project.payment_terms.filter((t) => t.billing_status === 'unbilled').length
+  const billed = (invoices.data?.items ?? [])
+    .filter((i) => i.status !== 'cancelled')
+    .reduce((sum, i) => sum + Number(i.total), 0)
+  const remaining = Number(project.contract_amount) - billed
+  const unbilledText = hasTerms
+    ? unbilledTerms > 0
+      ? `아직 청구하지 않은 지급 단계가 ${unbilledTerms}개 있어요.`
+      : null
+    : invoices.isSuccess && remaining > 0
+      ? `계약 금액 중 ${formatWon(remaining)}은 아직 청구하지 않았어요.`
+      : null
+
+  return (
+    <div className="complete-banner" role="status">
+      <div>
+        <p>
+          <strong>모든 작업을 마쳤어요.</strong> 프로젝트를 완료 처리할까요?
+        </p>
+        {unbilledText && <p className="muted small">{unbilledText} 완료 처리 전에 청구를 확인해 보세요.</p>}
+        {update.isError && <p className="field-error">{messageOf(update.error)}</p>}
+      </div>
+      <div className="head-actions">
+        {unbilledText && (
+          <Link to={`/invoices/new?project=${project.id}`} className="btn btn-secondary">
+            인보이스 작성
+          </Link>
+        )}
+        <button
+          type="button"
+          className="btn btn-primary"
+          disabled={update.isPending}
+          onClick={() => update.mutate({ status: 'completed', version: project.version })}
+        >
+          프로젝트 완료 처리
+        </button>
+      </div>
+    </div>
   )
 }
 
@@ -452,6 +509,8 @@ export function ProjectDetailPage() {
         </span>
       </div>
 
+      <CompleteBanner project={p} />
+
       <div className="tabs-row">
         <FilterTabs
           label="프로젝트 보기"
@@ -508,6 +567,13 @@ export function ProjectDetailPage() {
       {linkingContract && (
         <LinkContractDialog projectId={p.id} replacing={linkingContract === 'replace'} onClose={() => setLinkingContract(null)} />
       )}
+
+      <div className="stack" style={{ marginTop: 24 }}>
+        <ShareCard projectId={p.id} />
+        <AttachmentsCard projectId={p.id} tasks={tasks.data ?? []} />
+        <RevisionCard projectId={p.id} included={p.included_revisions ?? null} />
+        <FeedbackCard projectId={p.id} tasks={tasks.data ?? []} />
+      </div>
 
       <div className="notice notice-row" style={{ marginTop: 24 }}>
         <FileIcon size={18} />

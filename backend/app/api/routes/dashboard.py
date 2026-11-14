@@ -289,6 +289,11 @@ def dashboard(user: User = Depends(get_current_user), db: Session = Depends(get_
                 SELECT
                   COALESCE(SUM(b.total) FILTER (WHERE i.issue_date >= :month_start
                                                 AND i.issue_date < :next_month), 0) AS billed_this_month,
+                  COALESCE((SELECT SUM(p.amount)
+                              FROM payments p JOIN invoices pi ON pi.id = p.invoice_id
+                             WHERE pi.owner_id = :owner AND pi.status = 'issued' AND p.voided_at IS NULL
+                               AND p.paid_on >= :month_start AND p.paid_on < :next_month), 0)
+                    AS received_this_month,
                   COALESCE(SUM(b.paid_amount), 0) AS paid_total,
                   COALESCE(SUM(b.balance), 0)     AS outstanding_total
                 FROM v_invoice_balances b
@@ -331,6 +336,7 @@ def dashboard(user: User = Depends(get_current_user), db: Session = Depends(get_
         tasks_due_today=due_today,
         nearest_due_date=nearest_due,
         billed_this_month=money["billed_this_month"],
+        received_this_month=money["received_this_month"],
         paid_total=money["paid_total"],
         outstanding_total=money["outstanding_total"],
         projects=list_summaries(db, user.id, "active", PROJECT_LIMIT, 0),

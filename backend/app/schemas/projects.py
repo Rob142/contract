@@ -9,7 +9,7 @@ from app.schemas.common import Hours, JobType, Won
 
 ProjectStatus = Literal["active", "completed", "archived"]
 TaskStatus = Literal["todo", "doing", "done"]
-TaskSource = Literal["contract", "estimated", "manual"]
+TaskSource = Literal["contract", "estimated", "manual", "template"]
 
 
 def _check_dates(start: date | None, due: date | None) -> None:
@@ -67,6 +67,9 @@ class ProjectCreate(BaseModel):
     start_date: date | None = None
     due_date: date | None = None
     contract_amount: Won = Field(default=Decimal(0))
+    # true면 직군별 기본 단계를 작업으로 만든다
+    use_template: bool = False
+    included_revisions: int | None = Field(default=None, ge=0, le=99)
 
     @model_validator(mode="after")
     def _validate(self) -> Self:
@@ -86,6 +89,7 @@ class ProjectUpdate(BaseModel):
     due_date: date | None = None
     contract_amount: Won | None = None
     status: ProjectStatus | None = None
+    included_revisions: int | None = Field(default=None, ge=0, le=99)
     # 읽은 시점의 updated_at. 그 사이 바뀌었으면 409
     version: datetime | None = None
 
@@ -130,6 +134,7 @@ class ProjectSummary(BaseModel):
 
 class ProjectDetail(ProjectSummary):
     contract_id: UUID | None = None
+    included_revisions: int | None = None
     payment_terms: list[PaymentTermOut]
 
 

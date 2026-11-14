@@ -61,6 +61,8 @@ class Dashboard(BaseModel):
     nearest_due_date: date | None
     # 발행된 인보이스 기준. 초안은 제외한다
     billed_this_month: Won
+    # 입금일 기준 이번 달 입금액(= 수입). 취소된 입금은 제외한다
+    received_this_month: Won
     paid_total: Won
     outstanding_total: Won
     projects: list[ProjectSummary]

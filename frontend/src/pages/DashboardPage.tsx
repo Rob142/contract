@@ -96,7 +96,6 @@ function Kpi({ label, value, sub, to }: { label: string; value: string; sub: str
   )
 }
 
-const thisMonth = (today: string) => today.slice(0, 7)
 
 /** 03 통합 대시보드 */
 export function DashboardPage() {
@@ -155,10 +154,10 @@ export function DashboardPage() {
           to={d.upcoming[0] ? `/projects/${d.upcoming[0].project_id}?tab=schedule` : '/projects?status=active'}
         />
         <Kpi
-          label="발행 청구액"
-          value={formatWon(d.billed_this_month)}
-          sub="이번 달 발행 기준"
-          to={`/invoices?month=${thisMonth(d.today)}`}
+          label="이번 달 수입"
+          value={formatWon(d.received_this_month)}
+          sub={`입금일 기준 · 발행 청구액 ${formatWon(d.billed_this_month)}`}
+          to="/settlement"
         />
         <Kpi
           label="미수액"

@@ -134,6 +134,7 @@ class Project(TimestampMixin, Base):
     contract_amount: Mapped[Decimal] = mapped_column(Numeric(14, 0), server_default="0")
     currency: Mapped[str] = mapped_column(Text, server_default="KRW")
     status: Mapped[str] = mapped_column(Text, server_default="active")
+    included_revisions: Mapped[int | None]
 
 
 class Task(TimestampMixin, Base):
@@ -441,3 +442,128 @@ class AnalysisResult(Base):
     model_id: Mapped[str] = mapped_column(Text)
     raw_response: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+
+class Attachment(TimestampMixin, Base):
+    __tablename__ = "attachments"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    owner_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    task_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("tasks.id", ondelete="SET NULL"))
+    invoice_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("invoices.id", ondelete="SET NULL"))
+    kind: Mapped[str] = mapped_column(Text)
+    doc_type: Mapped[str | None] = mapped_column(Text)
+    title: Mapped[str] = mapped_column(Text)
+    file_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("files.id"))
+    url: Mapped[str | None] = mapped_column(Text)
+    issued_on: Mapped[date | None]
+    amount: Mapped[Decimal | None] = mapped_column(Numeric(14, 0))
+    memo: Mapped[str | None] = mapped_column(Text)
+
+
+class ShareLink(TimestampMixin, Base):
+    __tablename__ = "share_links"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    owner_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    token_hash: Mapped[str] = mapped_column(Text, unique=True)
+    expires_at: Mapped[datetime | None]
+    revoked_at: Mapped[datetime | None]
+    show_invoices: Mapped[bool] = mapped_column(server_default="false")
+    allow_feedback: Mapped[bool] = mapped_column(server_default="true")
+    last_viewed_at: Mapped[datetime | None]
+
+
+class TaskFeedback(Base):
+    __tablename__ = "task_feedback"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    task_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tasks.id", ondelete="CASCADE"))
+    author_role: Mapped[str] = mapped_column(Text)
+    author_name: Mapped[str] = mapped_column(Text)
+    body: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+
+class ViewEvent(Base):
+    __tablename__ = "view_events"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    share_link_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("share_links.id", ondelete="CASCADE"))
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    task_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("tasks.id", ondelete="CASCADE"))
+    kind: Mapped[str] = mapped_column(Text)
+    viewer_name: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+
+class RevisionRequest(Base):
+    __tablename__ = "revision_requests"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    task_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("tasks.id", ondelete="SET NULL"))
+    seq: Mapped[int]
+    body: Mapped[str] = mapped_column(Text)
+    requester_name: Mapped[str] = mapped_column(Text)
+    over_limit: Mapped[bool] = mapped_column(server_default="false")
+    excluded_at: Mapped[datetime | None]
+    excluded_reason: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+
+class ExtraQuote(TimestampMixin, Base):
+    __tablename__ = "extra_quotes"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    owner_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    revision_request_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("revision_requests.id", ondelete="SET NULL")
+    )
+    title: Mapped[str] = mapped_column(Text)
+    description: Mapped[str | None] = mapped_column(Text)
+    amount: Mapped[Decimal] = mapped_column(Numeric(14, 0))
+
+
+class PortfolioItem(TimestampMixin, Base):
+    __tablename__ = "portfolio_items"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    owner_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"), unique=True)
+    title: Mapped[str] = mapped_column(Text)
+    description: Mapped[str | None] = mapped_column(Text)
+    job_type: Mapped[str] = mapped_column(Text)
+    period_start: Mapped[date | None]
+    period_end: Mapped[date | None]
+    cover_attachment_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("attachments.id", ondelete="SET NULL")
+    )
+    status: Mapped[str] = mapped_column(Text, server_default="draft")
+    visibility: Mapped[str] = mapped_column(Text, server_default="private")
+    share_slug: Mapped[str | None] = mapped_column(Text, unique=True)
+    show_client_name: Mapped[bool] = mapped_column(server_default="false")
+    feedback_consent_at: Mapped[datetime | None]
+
+
+class PortfolioAsset(Base):
+    __tablename__ = "portfolio_assets"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    item_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("portfolio_items.id", ondelete="CASCADE"))
+    attachment_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("attachments.id", ondelete="CASCADE"))
+    position: Mapped[int] = mapped_column(server_default="0")
+
+
+class PortfolioQuote(Base):
+    __tablename__ = "portfolio_quotes"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    item_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("portfolio_items.id", ondelete="CASCADE"))
+    feedback_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("task_feedback.id", ondelete="CASCADE"))
+    quote: Mapped[str] = mapped_column(Text)
+    anonymize: Mapped[bool] = mapped_column(server_default="true")

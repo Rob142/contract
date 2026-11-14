@@ -1,4 +1,5 @@
 import os
+import re
 from collections.abc import Iterator
 from datetime import date
 from decimal import Decimal
@@ -65,6 +66,17 @@ from app.services.projects import get_detail as get_project_detail
 router = APIRouter(prefix="/contracts", tags=["contracts"])
 
 ACTIVE_JOB_STATUSES = ("queued", "running")
+
+
+def _confirmed_revision_count(db: Session, version_id: UUID) -> int | None:
+    """확인한 "수정 횟수" 값에서 숫자만 읽는다. 값이 없거나 숫자가 아니면 카운터를 쓰지 않는다."""
+    value = db.execute(
+        select(ContractField.confirmed_value).where(
+            ContractField.contract_version_id == version_id, ContractField.field_key == "revision_count"
+        )
+    ).scalar_one_or_none()
+    match = re.search(r"\d+", value or "")
+    return int(match.group()) if match else None
 
 
 def _clean_filename(name: str | None) -> str:
@@ -586,6 +598,9 @@ def create_project_from_contract(
             )
             db.add(project)
         db.flush()
+        included = _confirmed_revision_count(db, version.id)
+        if included is not None and project.included_revisions is None:
+            project.included_revisions = included
         for position, task in enumerate(body.tasks, start=first_position):
             db.add(
                 Task(

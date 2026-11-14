@@ -4,13 +4,15 @@ import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router'
 import { useLogout, type User } from '../api/auth'
 import { avatarInitial } from '../lib/format'
 import { ContractToast } from './Toast'
-import { BoardIcon, ChevronDownIcon, FileIcon, HomeIcon, ReceiptIcon } from './icons'
+import { BoardIcon, ChevronDownIcon, FileIcon, HomeIcon, LedgerIcon, PortfolioIcon, ReceiptIcon } from './icons'
 
 const NAV_ITEMS = [
   { to: '/dashboard', label: '대시보드', Icon: HomeIcon },
   { to: '/contracts', label: '계약서', Icon: FileIcon },
   { to: '/projects', label: '프로젝트', Icon: BoardIcon },
   { to: '/invoices', label: '인보이스', Icon: ReceiptIcon },
+  { to: '/settlement', label: '서류·정산', Icon: LedgerIcon },
+  { to: '/portfolio', label: '포트폴리오', Icon: PortfolioIcon },
 ] as const
 
 function UserMenu({ user }: { user: User }) {

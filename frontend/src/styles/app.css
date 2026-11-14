@@ -829,9 +829,10 @@ select.input {
 
 .card-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
-  gap: 12px;
+  gap: 4px 12px;
   margin-bottom: 8px;
 }
 
@@ -1412,6 +1413,18 @@ select.input {
   min-height: 44px;
 }
 
+/* 좁은 화면에서는 입력칸이 줄바꿈되어 잘리지 않게 한다 */
+@media (max-width: 640px) {
+  .inline-add {
+    flex-wrap: wrap;
+  }
+
+  .inline-add > .input {
+    flex: 1 1 140px;
+    min-width: 0;
+  }
+}
+
 /* ---------------------------------------------------------------- 계약서 목록 (04) */
 .dropzone {
   display: flex;
@@ -1625,12 +1638,14 @@ select.input {
 /* ---------------------------------------------------------------- 프로젝트 만들기 (07) · 인보이스 (10, 11) */
 .stack {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 24px;
   align-content: start;
 }
 
 .stack-sm {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
 }
 
@@ -2174,7 +2189,7 @@ select.input {
     bottom: 0;
     z-index: 20;
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(6, 1fr);
     height: calc(var(--tabbar-height) + env(safe-area-inset-bottom));
     padding-bottom: env(safe-area-inset-bottom);
     border-top: 1px solid var(--color-border);
@@ -2267,19 +2282,29 @@ select.input {
     gap: 8px 20px;
   }
 
-  /* 칸반: 열 하나씩 좌우로 넘겨 본다 */
+  /* 칸반: 열을 위에서 아래로 쌓는다. 옆으로 넘기면 보이는 열이 비어도 옆 열 높이만큼 빈 공간이 생긴다 */
   .kanban {
-    grid-template-columns: var(--kanban-cols-mobile, repeat(3, 86%));
+    grid-template-columns: minmax(0, 1fr);
     gap: 12px;
-    margin: 0 calc(-1 * var(--page-gutter));
-    padding: 0 var(--page-gutter);
-    overflow-x: auto;
-    scroll-snap-type: x mandatory;
-    scrollbar-width: none;
   }
 
-  .kanban-column {
-    scroll-snap-align: center;
+  .kanban-column.is-collapsed {
+    min-height: 0;
+  }
+
+  .kanban-expand {
+    flex-direction: row;
+    justify-content: flex-start;
+    padding: 14px 18px;
+  }
+
+  .kanban-expand h2 {
+    writing-mode: horizontal-tb;
+    letter-spacing: normal;
+  }
+
+  .kanban-head-actions [aria-expanded] {
+    transform: rotate(-90deg);
   }
 
   .timeline-row {
@@ -2926,4 +2951,84 @@ select.input {
 
 .form-problems li + li {
   margin-top: 2px;
+}
+
+/* 클라이언트 공유 페이지·공개 포트폴리오: 앱 레이아웃 없이 좁은 단일 열 */
+.client-page {
+  max-width: 760px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* 월별 수입 막대 */
+.income-bar {
+  height: 10px;
+  border-radius: 999px;
+  background: var(--gray-100, #eef0f3);
+  overflow: hidden;
+}
+
+.income-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--green-600, #2f9e6b);
+}
+
+/* 버튼으로 만든 카드 (포트폴리오 목록) */
+button.project-card {
+  width: 100%;
+  border: 1px solid var(--color-border);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+button.project-card > .muted {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+button.project-card:hover {
+  border-color: var(--color-primary);
+}
+
+button.project-card:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* 값이 없는 월 표시 (눌러도 열리는 것이 없다) */
+.plain-month {
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+/* 클라이언트 화면: 초과 수정 확인 */
+.confirm-over {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 14px;
+}
+
+/* 프로젝트 완료 제안 */
+.complete-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 16px;
+  margin-bottom: 16px;
+  padding: 16px 20px;
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-lg);
+  background: var(--color-primary-soft, #e8f3f0);
+}
+
+.complete-banner p {
+  margin: 0;
 }

@@ -1,6 +1,10 @@
 import { Navigate, Route, Routes } from 'react-router'
 
 import { GuestOnly, RequireAuth } from './components/RouteGuards'
+import { ClientSharePage } from './pages/ClientSharePage'
+import { PortfolioPage } from './pages/PortfolioPage'
+import { PublicPortfolioPage } from './pages/PublicPortfolioPage'
+import { SettlementPage } from './pages/SettlementPage'
 import { AnalysisPage } from './pages/AnalysisPage'
 import { ContractProjectPage } from './pages/ContractProjectPage'
 import { ContractDetailPage } from './pages/ContractDetailPage'
@@ -22,6 +26,9 @@ export function App() {
     <Routes>
       <Route index element={<Navigate to="/dashboard" replace />} />
 
+      <Route path="share/:token" element={<ClientSharePage />} />
+      <Route path="p/:slug" element={<PublicPortfolioPage />} />
+
       <Route element={<GuestOnly />}>
         <Route path="login" element={<LoginPage />} />
         <Route path="signup" element={<RegisterPage />} />
@@ -40,6 +47,8 @@ export function App() {
         <Route path="invoices/new" element={<InvoiceFormPage />} />
         <Route path="invoices/:invoiceId" element={<InvoiceDetailPage />} />
         <Route path="invoices/:invoiceId/edit" element={<InvoiceFormPage />} />
+        <Route path="settlement" element={<SettlementPage />} />
+        <Route path="portfolio" element={<PortfolioPage />} />
         <Route path="settings" element={<SettingsPage />} />
       </Route>
 

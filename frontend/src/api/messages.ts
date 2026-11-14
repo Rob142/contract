@@ -67,6 +67,11 @@ const MESSAGES: Record<string, string> = {
   local_llm_not_configured: '로컬 LLM 모델이 설정되지 않았어요. 설정의 AI 탭에서 연결해 주세요.',
   llm_auth_failed: 'API 키가 거절됐어요. 설정의 AI 탭에서 API 키를 확인해 주세요.',
   llm_unavailable: '모델 서버에 연결하지 못했어요. 설정값과 네트워크 상태를 확인해 주세요.',
+  file_type_not_allowed: '올릴 수 없는 파일 형식이에요. 문서·이미지·압축 파일 등 일반 자료만 올려 주세요.',
+  feedback_disabled: '이 링크에서는 의견을 남길 수 없어요.',
+  too_many_requests: '요청이 너무 많아요. 잠시 후 다시 시도해 주세요.',
+  share_link_exists: '이미 공유 링크가 있어요. 다시 발급해 주세요.',
+  attachment_linked: '인보이스에 연결된 자료라 삭제할 수 없어요.',
   invalid_result: '이 분석의 검토 항목이 아니에요.',
 }
 

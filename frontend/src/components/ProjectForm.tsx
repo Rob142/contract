@@ -34,6 +34,8 @@ type FormState = {
   dueDate: string
   amount: string
   status: ProjectStatus
+  useTemplate: boolean
+  includedRevisions: string
 }
 
 function validate(f: FormState): Record<string, string> {
@@ -84,6 +86,7 @@ function ProjectFormDialog({ title, initial, project, onClose }: ProjectFormProp
       start_date: form.startDate || null,
       due_date: form.dueDate || null,
       contract_amount: form.amount || '0',
+      included_revisions: form.includedRevisions === '' ? null : Number(form.includedRevisions),
     }
     const clientPart =
       form.clientChoice === NEW_CLIENT ? { new_client_name: form.newClientName.trim() } : { client_id: form.clientChoice }
@@ -95,7 +98,7 @@ function ProjectFormDialog({ title, initial, project, onClose }: ProjectFormProp
         { onSuccess: onClose },
       )
     } else {
-      create.mutate({ ...common, ...clientPart }, { onSuccess: (p) => navigate(`/projects/${p.id}`) })
+      create.mutate({ ...common, ...clientPart, use_template: form.useTemplate }, { onSuccess: (p) => navigate(`/projects/${p.id}`) })
     }
   }
 
@@ -176,6 +179,19 @@ function ProjectFormDialog({ title, initial, project, onClose }: ProjectFormProp
           error={serverErrors.contract_amount ? '금액을 확인해 주세요.' : undefined}
           fieldClassName={project ? undefined : 'span-2'}
         />
+        <TextField
+          label="포함 수정 횟수"
+          inputMode="numeric"
+          value={form.includedRevisions}
+          onChange={(e) => set('includedRevisions', e.target.value.replace(/\D/g, '').slice(0, 2))}
+          hint="비워 두면 수정 요청 카운터를 쓰지 않아요. 계약서를 연결하면 확인한 값이 들어와요."
+        />
+        {!project && (
+          <label className="checkbox span-2">
+            <input type="checkbox" checked={form.useTemplate} onChange={(e) => set('useTemplate', e.target.checked)} />
+            <span>직업군에 맞는 기본 단계로 시작하기 (만든 뒤 자유롭게 고칠 수 있어요)</span>
+          </label>
+        )}
         {project && (
           <SelectField
             label="상태"
@@ -211,6 +227,8 @@ export function NewProjectDialog({ defaultJobType, onClose }: { defaultJobType: 
         dueDate: '',
         amount: '',
         status: 'active',
+        useTemplate: true,
+        includedRevisions: '',
       }}
     />
   )
@@ -231,6 +249,8 @@ export function EditProjectDialog({ project, onClose }: { project: ProjectDetail
         dueDate: project.due_date ?? '',
         amount: project.contract_amount === '0' ? '' : project.contract_amount,
         status: project.status,
+        useTemplate: false,
+        includedRevisions: project.included_revisions == null ? '' : String(project.included_revisions),
       }}
     />
   )
