@@ -174,10 +174,10 @@ def project_out(db: Session, project_id: UUID, user_id: UUID) -> dict[str, Any]:
                 due_date=t.due_date,
                 status=t.status,
                 label=t.label,
-                client_visible=t.client_visible,
+                client_visible=t.client_visible or t.due_date is not None,
             )
             for t in tasks
-            if owner or t.client_visible
+            if owner or t.client_visible or t.due_date is not None
         ],
         deliveries=versions_out(db, p.id),
         revisions=revision_counter(db, p).model_dump(),

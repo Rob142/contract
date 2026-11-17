@@ -50,7 +50,10 @@ export function useProject(id: string, enabled = true) {
 }
 
 export function useTasks(projectId: string) {
-  return useQuery({ queryKey: keys.tasks(projectId), queryFn: () => api<Task[]>('GET', `/projects/${projectId}/tasks`) })
+  return useQuery({
+    queryKey: keys.tasks(projectId),
+    queryFn: () => api<Task[]>('GET', `/projects/${projectId}/tasks`),
+  })
 }
 
 export function useClients() {
@@ -162,7 +165,12 @@ export function useMoveTask(projectId: string) {
 }
 
 // ---------------------------------------------------------------- 체크리스트
-function replaceChecklist(qc: QueryClient, projectId: string, taskId: string, fn: (items: ChecklistItem[]) => ChecklistItem[]) {
+function replaceChecklist(
+  qc: QueryClient,
+  projectId: string,
+  taskId: string,
+  fn: (items: ChecklistItem[]) => ChecklistItem[],
+) {
   qc.setQueryData<Task[]>(keys.tasks(projectId), (old) =>
     old?.map((t) => (t.id === taskId ? { ...t, checklist: fn(t.checklist) } : t)),
   )
@@ -211,8 +219,9 @@ export function useUnlinkContract(id: string) {
 }
 
 /** 선택한 달의 진행 중 프로젝트에 속한 모든 미완료 마감 작업. */
-export function useCalendarTasks(month: string) {
+export function useCalendarTasks(month: string, enabled = true) {
   return useQuery({
+    enabled,
     queryKey: ['projects', 'calendar', month],
     queryFn: () => api<Dashboard['upcoming']>('GET', `/dashboard/calendar?month=${month}`),
   })

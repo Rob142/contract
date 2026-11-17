@@ -1,4 +1,4 @@
-import { FreelancerClientPanel } from "./ClientProjectView"
+import { FreelancerClientPanel } from './ClientProjectView'
 import { AttachmentsCard, FeedbackCard, RevisionCard, ShareCard } from '../components/ProjectSharePanels'
 import { useState } from 'react'
 import { Link, useOutletContext, useParams, useSearchParams } from 'react-router'
@@ -42,7 +42,10 @@ function paymentTermsText(project: ProjectDetail): string {
   return project.payment_terms.map((t) => t.label).join(' · ')
 }
 
-const BILLING_BADGE: Record<ProjectDetail['payment_terms'][number]['billing_status'], { label: string; className: string }> = {
+const BILLING_BADGE: Record<
+  ProjectDetail['payment_terms'][number]['billing_status'],
+  { label: string; className: string }
+> = {
   unbilled: { label: '청구 전', className: 'badge badge-gray' },
   draft: { label: '초안 작성 중', className: 'badge badge-amber' },
   billed: { label: '청구됨', className: 'badge badge-info' },
@@ -102,8 +105,10 @@ function LinkContractDialog({
         <Loading />
       ) : items.length === 0 ? (
         <p className="muted" style={{ margin: 0 }}>
-          {replacing ? '바꿀 수 있는 계약서가 없어요. 수정 계약서를 새로 올려 주세요.' : '연결할 수 있는 계약서가 없어요.'} 새 계약서를 올리면
-          조건 확인 후 이 프로젝트에 연결할 수 있어요.
+          {replacing
+            ? '바꿀 수 있는 계약서가 없어요. 수정 계약서를 새로 올려 주세요.'
+            : '연결할 수 있는 계약서가 없어요.'}{' '}
+          새 계약서를 올리면 조건 확인 후 이 프로젝트에 연결할 수 있어요.
         </p>
       ) : (
         <ul className="row-list">
@@ -112,7 +117,9 @@ function LinkContractDialog({
               <Link to={`/contracts/${c.id}/project?project=${projectId}`} className="schedule-row">
                 <div>
                   <strong>{c.title}</strong>
-                  <span className="muted">조건 확인 완료 · {replacing ? '이 계약서로 바꿀 수 있어요' : '연결할 수 있어요'}</span>
+                  <span className="muted">
+                    조건 확인 완료 · {replacing ? '이 계약서로 바꿀 수 있어요' : '연결할 수 있어요'}
+                  </span>
                 </div>
                 <span className="link-strong">{replacing ? '교체 →' : '연결 →'}</span>
               </Link>
@@ -202,7 +209,9 @@ function BillingStages({
   const contract = useContract(project.contract_id ?? '')
   const c = contract.data
   const pending =
-    c && c.project_version_no !== null && c.project_version_no !== undefined && c.version_no > c.project_version_no ? c : null
+    c && c.project_version_no !== null && c.project_version_no !== undefined && c.version_no > c.project_version_no
+      ? c
+      : null
   const pendingReady = pending && (pending.status === 'ready' || pending.status === 'analyzed')
   const list = invoices.data?.items ?? []
 
@@ -226,7 +235,10 @@ function BillingStages({
               {pendingReady ? '청구 이력을 이어 붙여 프로젝트에 반영하세요.' : '조건 확인을 마치면 반영할 수 있어요.'}
             </p>
             {pendingReady ? (
-              <Link to={`/projects/${project.id}/revise?version=${pending.version_id}`} className="btn btn-primary btn-sm">
+              <Link
+                to={`/projects/${project.id}/revise?version=${pending.version_id}`}
+                className="btn btn-primary btn-sm"
+              >
                 수정 계약 반영
               </Link>
             ) : (
@@ -288,12 +300,15 @@ function BillingStages({
             }
           >
             <p style={{ margin: 0 }}>
-              프로젝트에서 계약서와 지급 단계가 빠져요. 작업과 계약서 자체는 그대로 남고, 계약서는 다른 프로젝트에 다시 연결할 수 있어요.
+              프로젝트에서 계약서와 지급 단계가 빠져요. 작업과 계약서 자체는 그대로 남고, 계약서는 다른 프로젝트에 다시
+              연결할 수 있어요.
             </p>
           </Dialog>
         )}
         {project.payment_terms.length === 0 ? (
-          <EmptyState title={project.has_contract ? '확인된 지급 조건이 없어요.' : '계약서와 연결되지 않은 프로젝트예요.'}>
+          <EmptyState
+            title={project.has_contract ? '확인된 지급 조건이 없어요.' : '계약서와 연결되지 않은 프로젝트예요.'}
+          >
             {!project.has_contract && (
               <button type="button" className="btn btn-primary" onClick={onLinkContract}>
                 계약서 연결
@@ -399,22 +414,53 @@ function BillingStages({
 }
 
 /** 일정 탭: 작업 마감일을 달력에 표시한다. */
-function ScheduleCalendar({ tasks, onOpen, focusTaskId }: { tasks: Task[]; onOpen: (id: string) => void; focusTaskId: string | null }) {
-  const [month, setMonth] = useState(() => (tasks.find((task) => task.id === focusTaskId)?.due_date ?? todayIso()).slice(0, 7))
+function ScheduleCalendar({
+  tasks,
+  onOpen,
+  focusTaskId,
+}: {
+  tasks: Task[]
+  onOpen: (id: string) => void
+  focusTaskId: string | null
+}) {
+  const [month, setMonth] = useState(() =>
+    (tasks.find((task) => task.id === focusTaskId)?.due_date ?? todayIso()).slice(0, 7),
+  )
   const undated = tasks.filter((task) => !task.due_date)
-  return <div className="card">
-    <TaskCalendar month={month} onMonthChange={setMonth} today={todayIso()} onOpen={onOpen}
-      entries={tasks.filter((task) => task.due_date).map((task) => ({ id: task.id, title: task.title, dueDate: task.due_date!, status: task.status }))} />
-    {undated.length > 0 && <section className="calendar-undated">
-      <h3>마감일 미정 · {undated.length}개</h3>
-      <p className="field-hint">아래 작업은 마감일을 정하면 달력에도 표시돼요.</p>
-      <ul className="row-list">{undated.map((task) => <li key={task.id}>
-        <button type="button" className="schedule-row" onClick={() => onOpen(task.id)}>
-          <strong>{task.title}</strong><span className="muted">{STATUS_LABELS[task.status]}</span>
-        </button>
-      </li>)}</ul>
-    </section>}
-  </div>
+  return (
+    <div className="card">
+      <h2 className="card-title">프로젝트 공유 일정</h2>
+      <p className="cs-note">
+        마감일이 있는 작업의 제목·기한·진행 상태는 이 프로젝트에 초대된 클라이언트도 볼 수 있습니다. 개인 메모나 비공개
+        일정은 대시보드의 나만의 일정에 등록하세요. 내부 체크리스트·단가는 공유되지 않습니다.
+      </p>
+      <TaskCalendar
+        month={month}
+        onMonthChange={setMonth}
+        today={todayIso()}
+        onOpen={onOpen}
+        entries={tasks
+          .filter((task) => task.due_date)
+          .map((task) => ({ id: task.id, title: task.title, dueDate: task.due_date!, status: task.status }))}
+      />
+      {undated.length > 0 && (
+        <section className="calendar-undated">
+          <h3>마감일 미정 · {undated.length}개</h3>
+          <p className="field-hint">아래 작업은 마감일을 정하면 달력에도 표시돼요.</p>
+          <ul className="row-list">
+            {undated.map((task) => (
+              <li key={task.id}>
+                <button type="button" className="schedule-row" onClick={() => onOpen(task.id)}>
+                  <strong>{task.title}</strong>
+                  <span className="muted">{STATUS_LABELS[task.status]}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+    </div>
+  )
 }
 
 /** 09 프로젝트 상세 (칸반) */
@@ -555,7 +601,11 @@ export function ProjectDetailPage() {
         onReplaceContract={() => setLinkingContract('replace')}
       />
       {linkingContract && (
-        <LinkContractDialog projectId={p.id} replacing={linkingContract === 'replace'} onClose={() => setLinkingContract(null)} />
+        <LinkContractDialog
+          projectId={p.id}
+          replacing={linkingContract === 'replace'}
+          onClose={() => setLinkingContract(null)}
+        />
       )}
 
       <div className="stack" style={{ marginTop: 24 }}>
@@ -568,7 +618,10 @@ export function ProjectDetailPage() {
 
       <div className="notice notice-row" style={{ marginTop: 24 }}>
         <FileIcon size={18} />
-        <p>작업을 완료해도 인보이스가 자동 발행되지는 않아요. 지급 단계의 요건을 확인한 뒤 &lsquo;청구하기&rsquo;를 눌러 주세요.</p>
+        <p>
+          작업을 완료해도 인보이스가 자동 발행되지는 않아요. 지급 단계의 요건을 확인한 뒤 &lsquo;청구하기&rsquo;를 눌러
+          주세요.
+        </p>
       </div>
 
       {editing && <EditProjectDialog project={p} onClose={() => setEditing(false)} />}

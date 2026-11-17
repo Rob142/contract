@@ -726,3 +726,14 @@ class ProjectMessage(Base):
     actor_side: Mapped[str] = mapped_column(Text)
     body: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+
+class PersonalCalendarEvent(TimestampMixin, Base):
+    __tablename__ = "personal_calendar_events"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    owner_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    title: Mapped[str] = mapped_column(Text)
+    notes: Mapped[str] = mapped_column(Text, server_default="")
+    scheduled_on: Mapped[date]
+    is_done: Mapped[bool] = mapped_column(server_default="false")
+    archived_at: Mapped[datetime | None]

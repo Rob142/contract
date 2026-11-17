@@ -820,7 +820,7 @@ def complete_client_task(
 ) -> dict:
     project_access(db, pid, user.id, write=True)
     t = db.scalar(select(Task).where(Task.id == tid, Task.project_id == pid).with_for_update())
-    if t is None or not t.client_visible or t.label != "고객 자료":
+    if t is None or (not t.client_visible and t.due_date is None) or t.label != "고객 자료":
         raise not_found("task")
     t.status = "done"
     t.completed_at = datetime.now(UTC)

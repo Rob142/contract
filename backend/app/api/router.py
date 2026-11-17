@@ -12,6 +12,7 @@ from app.api.routes import (
     health,
     invoices,
     jobs,
+    personal_calendar,
     portfolio,
     projects,
     public,
@@ -41,3 +42,4 @@ api_router.include_router(portfolio.public_router)
 api_router.include_router(settlement.router)
 api_router.include_router(client_service.router)
 api_router.include_router(conversations.router)
+api_router.include_router(personal_calendar.router)

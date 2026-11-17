@@ -1,32 +1,9 @@
 import { useState } from 'react'
-import {
-  Link,
-  Navigate,
-  NavLink,
-  useLocation,
-  useNavigate,
-  useParams,
-} from 'react-router'
+import { Link, Navigate, NavLink, useLocation, useNavigate, useParams } from 'react-router'
 import { useMe } from '../api/auth'
-import {
-  cs,
-  useCS,
-  type ClientProject,
-  type Invitation,
-  type Member,
-  type Workspace,
-} from '../api/clientService'
-import {
-  ActionForm,
-  ErrorNotice,
-  Input,
-  Select,
-  State,
-  money,
-  roles,
-  str,
-} from '../components/ClientServiceUI'
-import { TaskCalendar } from '../components/TaskCalendar'
+import { cs, useCS, type ClientProject, type Invitation, type Member, type Workspace } from '../api/clientService'
+import { ActionForm, ErrorNotice, Input, Select, State, money, roles, str } from '../components/ClientServiceUI'
+import { PersonalCalendar } from '../components/PersonalCalendar'
 
 import { ExpertsView, ProfileEditor } from './ExpertsView'
 import { InquiriesView } from './InquiriesView'
@@ -37,13 +14,8 @@ export function ClientServicePage() {
   const { projectId } = useParams()
   const workspaces = useCS<Workspace[]>('/workspaces')
   const me = useMe()
-  const [selected, setSelected] = useState(
-    new URLSearchParams(location.search).get('workspace') ?? '',
-  )
-  const linkedProject = useCS<ClientProject>(
-    `/projects/${projectId}`,
-    !!projectId,
-  )
+  const [selected, setSelected] = useState(new URLSearchParams(location.search).get('workspace') ?? '')
+  const linkedProject = useCS<ClientProject>(`/projects/${projectId}`, !!projectId)
   const wid =
     (projectId ? linkedProject.data?.workspace_id : null) ??
     workspaces.data?.find((w) => w.id === selected)?.id ??
@@ -96,10 +68,7 @@ export function ClientServicePage() {
       {!workspaces.isPending && !wid && !projectId && (
         <section className="cs-card cs-onboard">
           <h2>일을 맡길 공간을 만드세요</h2>
-          <p>
-            기업·팀 이름 또는 개인 이름으로 시작할 수 있습니다. 초대받았다면
-            초대 링크를 열어 주세요.
-          </p>
+          <p>기업·팀 이름 또는 개인 이름으로 시작할 수 있습니다. 초대받았다면 초대 링크를 열어 주세요.</p>
           <ActionForm
             title="워크스페이스 만들기"
             label="만들고 전문가 찾기"
@@ -115,78 +84,45 @@ export function ClientServicePage() {
           </ActionForm>
         </section>
       )}
-      {tab === 'experts' && (
-        <ExpertsView wid={wid} canInquire={current?.role !== 'viewer'} />
-      )}
+      {tab === 'experts' && <ExpertsView wid={wid} canInquire={current?.role !== 'viewer'} />}
       {tab === 'dashboard' && wid && <ClientDashboard wid={wid} />}
-      {tab === 'projects' && !projectId && wid && (
-        <ClientDashboard wid={wid} listOnly />
-      )}
+      {tab === 'projects' && !projectId && wid && <ClientDashboard wid={wid} listOnly />}
       {projectId && <ClientProjectView id={projectId} />}
       {tab === 'inquiries' && wid && (
-        <InquiriesView
-          wid={wid}
-          canAccept={current?.role === 'owner' || current?.role === 'admin'}
-        />
+        <InquiriesView wid={wid} canAccept={current?.role === 'owner' || current?.role === 'admin'} />
       )}
-      {tab === 'team' && wid && (
-        <TeamSettings wid={wid} current={current!} meId={me.data?.id ?? ''} />
-      )}
+      {tab === 'team' && wid && <TeamSettings wid={wid} current={current!} meId={me.data?.id ?? ''} />}
     </div>
   )
 }
 export function ClientHome() {
   const workspaces = useCS<Workspace[]>('/workspaces')
   const first = workspaces.data?.[0]?.id
-  const projects = useCS<ClientProject[]>(
-    `/workspaces/${first}/projects`,
-    !!first,
-  )
-  if (workspaces.isPending || (first && projects.isPending))
-    return <p role="status">이동할 화면을 확인하는 중…</p>
-  if (workspaces.error || projects.error)
-    return <ErrorNotice error={workspaces.error || projects.error} />
+  const projects = useCS<ClientProject[]>(`/workspaces/${first}/projects`, !!first)
+  if (workspaces.isPending || (first && projects.isPending)) return <p role="status">이동할 화면을 확인하는 중…</p>
+  if (workspaces.error || projects.error) return <ErrorNotice error={workspaces.error || projects.error} />
   return (
     <Navigate
-      to={
-        projects.data?.some((p) => p.status === 'active')
-          ? '/client/dashboard'
-          : '/client/experts'
-      }
+      to={projects.data?.some((p) => p.status === 'active') ? '/client/dashboard' : '/client/experts'}
       replace
     />
   )
 }
-function ClientDashboard({
-  wid,
-  listOnly = false,
-}: {
-  wid: string
-  listOnly?: boolean
-}) {
+function ClientDashboard({ wid, listOnly = false }: { wid: string; listOnly?: boolean }) {
   const projects = useCS<ClientProject[]>(`/workspaces/${wid}/projects`)
   const today = new Intl.DateTimeFormat('sv-SE', {
     timeZone: 'Asia/Seoul',
   }).format(new Date())
-  const [month, setMonth] = useState(today.slice(0, 7))
   const data = projects.data ?? []
   const pending = data.flatMap((p) =>
-    p.deliveries
-      .filter((d) => d.current && d.state === 'pending')
-      .map((d) => ({ p, d })),
+    p.deliveries.filter((d) => d.current && d.state === 'pending').map((d) => ({ p, d })),
   )
-  const tasks = data.flatMap((p) =>
-    p.tasks
-      .filter((t) => t.status !== 'done' && t.due_date)
-      .map((t) => ({ p, t })),
-  )
+  const tasks = data.flatMap((p) => p.tasks.filter((t) => t.status !== 'done' && t.due_date).map((t) => ({ p, t })))
   return (
     <>
       <div className="cs-section-head">
         <h2>{listOnly ? '우리 팀 프로젝트' : '지금 확인할 일'}</h2>
-        <p>
-          초대받은 프로젝트만 표시됩니다. 작업 완료와 결과물 승인은 별개입니다.
-        </p>
+        <p>초대받은 프로젝트만 표시됩니다. 작업 완료와 결과물 승인은 별개입니다.</p>
       </div>
       <ErrorNotice error={projects.error} />
       {projects.isPending && <p role="status">프로젝트를 불러오는 중…</p>}
@@ -194,9 +130,7 @@ function ClientDashboard({
         <>
           <div className="cs-kpis">
             <div>
-              <strong>
-                {data.filter((p) => p.status === 'active').length}
-              </strong>
+              <strong>{data.filter((p) => p.status === 'active').length}</strong>
               <span>진행 중 프로젝트</span>
             </div>
             <div>
@@ -204,9 +138,7 @@ function ClientDashboard({
               <span>검수 대기 결과물</span>
             </div>
             <div>
-              <strong>
-                {tasks.filter(({ t }) => t.due_date! < today).length}
-              </strong>
+              <strong>{tasks.filter(({ t }) => t.due_date! < today).length}</strong>
               <span>기한이 지난 공개 일정</span>
             </div>
           </div>
@@ -216,11 +148,7 @@ function ClientDashboard({
               {tasks
                 .filter(({ t }) => t.label === '고객 자료')
                 .map(({ p, t }) => (
-                  <Link
-                    key={t.id}
-                    to={`/client/projects/${p.id}`}
-                    className="cs-task cs-material-link"
-                  >
+                  <Link key={t.id} to={`/client/projects/${p.id}`} className="cs-task cs-material-link">
                     <strong>{t.title}</strong>
                     <span>
                       {t.due_date}까지 · {p.name}
@@ -231,22 +159,14 @@ function ClientDashboard({
           )}
           <div className="cs-grid">
             {pending.map(({ p, d }) => (
-              <Link
-                key={d.id}
-                to={`/client/projects/${p.id}`}
-                className="cs-card"
-              >
+              <Link key={d.id} to={`/client/projects/${p.id}`} className="cs-card">
                 <State value="pending" />
                 <h3>
                   {d.title} · v{d.seq}
                 </h3>
                 <p>{p.name}</p>
-                <p>
-                  {d.due_date ? `${d.due_date}까지 검수` : '검수 기한 미정'}
-                </p>
-                <strong>
-                  {p.can_approve ? '검수·승인하기 →' : '결과물 확인하기 →'}
-                </strong>
+                <p>{d.due_date ? `${d.due_date}까지 검수` : '검수 기한 미정'}</p>
+                <strong>{p.can_approve ? '검수·승인하기 →' : '결과물 확인하기 →'}</strong>
               </Link>
             ))}
           </div>
@@ -258,8 +178,7 @@ function ClientDashboard({
             <State value={p.status} />
             <h3>{p.name}</h3>
             <p>
-              {p.freelancer_name} ·{' '}
-              {p.due_date ? `${p.due_date} 마감` : '마감일 미정'}
+              {p.freelancer_name} · {p.due_date ? `${p.due_date} 마감` : '마감일 미정'}
             </p>
             {p.can_finance && <p>계약 기준 금액 {money(p.contract_amount)}</p>}
             <span className="cs-link">프로젝트 열기 →</span>
@@ -270,8 +189,8 @@ function ClientDashboard({
         <div className="cs-empty">
           <h3>아직 연결된 프로젝트가 없습니다</h3>
           <p>
-            전문가에게 의뢰하거나 프리랜서가 보낸 프로젝트 연결 초대를
-            수락하세요. 관리자는 참여 권한 없이 프로젝트를 볼 수 없습니다.
+            전문가에게 의뢰하거나 프리랜서가 보낸 프로젝트 연결 초대를 수락하세요. 관리자는 참여 권한 없이 프로젝트를 볼
+            수 없습니다.
           </p>
           <Link to="/client/experts" className="btn btn-primary">
             전문가 찾기
@@ -280,12 +199,10 @@ function ClientDashboard({
       )}
       {!listOnly && (
         <section className="cs-card">
-          <h2>팀 일정 캘린더</h2>
-          <TaskCalendar
-            month={month}
-            onMonthChange={setMonth}
+          <h2>나만의 일정</h2>
+          <PersonalCalendar
             today={today}
-            entries={[
+            projectEntries={[
               ...tasks.map(({ p, t }) => ({
                 id: t.id,
                 title: t.title,
@@ -310,15 +227,7 @@ function ClientDashboard({
     </>
   )
 }
-function TeamSettings({
-  wid,
-  current,
-  meId,
-}: {
-  wid: string
-  current: Workspace
-  meId: string
-}) {
+function TeamSettings({ wid, current, meId }: { wid: string; current: Workspace; meId: string }) {
   const members = useCS<Member[]>(`/workspaces/${wid}/members`)
   const manage = ['owner', 'admin'].includes(current.role)
   const invites = useCS<Invitation[]>(`/workspaces/${wid}/invitations`, manage)
@@ -327,10 +236,7 @@ function TeamSettings({
     <>
       <div className="cs-section-head">
         <h2>팀과 접근 권한</h2>
-        <p>
-          관리자도 초대된 프로젝트만 열람합니다. 프로젝트별 참여자·승인자·금액
-          권한은 해당 프로젝트에서 설정합니다.
-        </p>
+        <p>관리자도 초대된 프로젝트만 열람합니다. 프로젝트별 참여자·승인자·금액 권한은 해당 프로젝트에서 설정합니다.</p>
       </div>
       <ErrorNotice error={members.error} />
       <div className="cs-grid">
@@ -358,11 +264,7 @@ function TeamSettings({
                     label="역할"
                     name="role"
                     value={m.role}
-                    options={
-                      current.role === 'owner'
-                        ? roles
-                        : roles.filter((r) => r[0] !== 'owner')
-                    }
+                    options={current.role === 'owner' ? roles : roles.filter((r) => r[0] !== 'owner')}
                   />
                 </ActionForm>
               )}
@@ -371,18 +273,12 @@ function TeamSettings({
                   title={`${m.name} 참여 해제`}
                   label={m.id === meId ? '팀 나가기' : '팀에서 제외'}
                   onSubmit={async () => {
-                    if (
-                      !window.confirm(
-                        `${m.name} 님의 이 팀 접근 권한을 해제할까요?`,
-                      )
-                    )
-                      return
+                    if (!window.confirm(`${m.name} 님의 이 팀 접근 권한을 해제할까요?`)) return
                     await cs('DELETE', `/workspaces/${wid}/members/${m.id}`)
                   }}
                 >
                   <p className="field-hint">
-                    해제하면 프로젝트·파일 접근도 종료됩니다. 마지막 소유자는
-                    나갈 수 없습니다.
+                    해제하면 프로젝트·파일 접근도 종료됩니다. 마지막 소유자는 나갈 수 없습니다.
                   </p>
                 </ActionForm>
               )}
@@ -395,36 +291,23 @@ function TeamSettings({
               title="팀원 초대"
               label="초대 링크 만들기"
               onSubmit={async (d) => {
-                const i = await cs<Invitation>(
-                  'POST',
-                  `/workspaces/${wid}/invitations`,
-                  { email: str(d, 'email'), role: str(d, 'role') },
-                )
-                setLink(
-                  `${location.origin}/client/invite?token=${encodeURIComponent(i.token!)}`,
-                )
+                const i = await cs<Invitation>('POST', `/workspaces/${wid}/invitations`, {
+                  email: str(d, 'email'),
+                  role: str(d, 'role'),
+                })
+                setLink(`${location.origin}/client/invite?token=${encodeURIComponent(i.token!)}`)
               }}
             >
               <Input label="초대할 이메일" name="email" type="email" required />
-              <Select
-                label="팀 역할"
-                name="role"
-                options={roles.filter((r) => r[0] !== 'owner')}
-              />
+              <Select label="팀 역할" name="role" options={roles.filter((r) => r[0] !== 'owner')} />
               <p className="cs-note">
-                이메일 발송 미연결 · 링크는 3일 후 만료되며, 해당 이메일
-                계정으로 한 번만 수락할 수 있습니다.
+                이메일 발송 미연결 · 링크는 3일 후 만료되며, 해당 이메일 계정으로 한 번만 수락할 수 있습니다.
               </p>
             </ActionForm>
             {link && (
               <label className="cs-field">
                 <span>초대 링크 · 지금 복사해서 전달하세요</span>
-                <input
-                  className="input"
-                  readOnly
-                  value={link}
-                  onFocus={(e) => e.target.select()}
-                />
+                <input className="input" readOnly value={link} onFocus={(e) => e.target.select()} />
               </label>
             )}
             <ErrorNotice error={invites.error} />
@@ -472,10 +355,7 @@ export function ClientInvitePage() {
   return (
     <section className="cs-card cs-invite">
       <h1>초대 수락</h1>
-      <p>
-        초대받은 이메일 계정으로 로그인했는지 확인하세요. 프로젝트 연결 초대라면
-        연결할 워크스페이스를 선택하세요.
-      </p>
+      <p>초대받은 이메일 계정으로 로그인했는지 확인하세요. 프로젝트 연결 초대라면 연결할 워크스페이스를 선택하세요.</p>
       <ActionForm
         title="초대 확인"
         label="초대 수락"

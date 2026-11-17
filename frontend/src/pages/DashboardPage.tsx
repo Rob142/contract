@@ -2,23 +2,11 @@ import { useState } from 'react'
 import { Link, useOutletContext } from 'react-router'
 
 import type { User } from '../api/auth'
-import { useCalendarTasks, useDashboard, type Dashboard } from '../api/projects'
-import { TaskCalendar } from '../components/TaskCalendar'
+import { useDashboard, type Dashboard } from '../api/projects'
+import { PersonalCalendar } from '../components/PersonalCalendar'
 import { NewProjectDialog } from '../components/ProjectForm'
 import { EmptyState, LoadError, Loading, ProgressBar } from '../components/ui'
 import { displayName, formatMonthDay, formatShortDate, formatWon, todayLine } from '../lib/format'
-
-function DashboardCalendar({ today }: { today: string }) {
-  const [month, setMonth] = useState(today.slice(0, 7))
-  const calendar = useCalendarTasks(month)
-  return <>
-    {calendar.isError && <LoadError error={calendar.error} onRetry={() => void calendar.refetch()} />}
-    <TaskCalendar month={month} onMonthChange={setMonth} today={today} loading={calendar.isPending}
-      entries={(calendar.data ?? []).map((task) => ({ id: task.task_id, title: task.title,
-        dueDate: task.due_date, subtitle: task.project_name,
-        href: `/projects/${task.project_id}?tab=schedule&task=${task.task_id}` }))} />
-  </>
-}
 
 const PAYMENT_STATUS: Record<Dashboard['invoices'][number]['payment_status'], string> = {
   unpaid: '미입금',
@@ -108,7 +96,6 @@ function Kpi({ label, value, sub, to }: { label: string; value: string; sub: str
     </Link>
   )
 }
-
 
 /** 03 통합 대시보드 */
 export function DashboardPage() {
@@ -223,14 +210,14 @@ export function DashboardPage() {
 
         <section className="card" aria-labelledby="upcoming">
           <h2 id="upcoming" className="card-title">
-            다가오는 일정
+            나만의 일정
           </h2>
-          <DashboardCalendar today={d.today} />
+          <PersonalCalendar today={d.today} />
           <div className="notice" style={{ marginTop: 16 }}>
             <p>
               {d.tasks_due_today > 0
-                ? `오늘 마감인 작업이 ${d.tasks_due_today}개 있어요.`
-                : '오늘 마감인 작업은 없어요.'}
+                ? `별도로, 오늘 마감인 프로젝트 작업이 ${d.tasks_due_today}개 있어요.`
+                : '오늘 마감인 프로젝트 작업은 없어요.'}
             </p>
           </div>
         </section>
