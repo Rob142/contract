@@ -107,7 +107,7 @@ def test_llm_connection(body: LlmTestIn, user: User = Depends(get_current_user))
             )
 
         res = provider.generate_json(
-            "You are a connection test assistant. Respond with JSON {\"status\": \"ok\"}.",
+            'You are a connection test assistant. Respond with JSON {"status": "ok"}.',
             "ping",
             {"type": "object", "properties": {"status": {"type": "string"}}, "required": ["status"]},
             max_output_tokens=64,
@@ -121,7 +121,7 @@ def test_llm_connection(body: LlmTestIn, user: User = Depends(get_current_user))
     except LlmUnavailableError as exc:
         raise conflict(exc.code, str(exc)) from exc
     except (LlmTransientError, LlmOutputError) as exc:
-        raise conflict("llm_unavailable", str(exc)) from exc
+        raise conflict(exc.code, str(exc)) from exc
 
 
 def _analysis_jobs(db: Session, version_id: UUID) -> list[AnalysisJob]:

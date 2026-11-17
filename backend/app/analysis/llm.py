@@ -6,11 +6,14 @@ API 키는 서버 설정 또는 사용자 설정에서만 읽고 작업 테이�
 """
 
 import json
+import logging
 import re
 from dataclasses import dataclass
 from typing import Any, Literal, Protocol
 
 from app.core.config import get_settings
+
+logger = logging.getLogger(__name__)
 
 Mode = Literal["commercial", "local"]
 
@@ -32,7 +35,14 @@ class LlmUnavailableError(Exception):
 
 
 class LlmTransientError(Exception):
-    """잠시 뒤 다시 시도하면 될 수 있는 오류 (429, 5xx, 시간 초과, 연결)."""
+    """잠시 뒤 다시 시도하면 될 수 있는 오류 (429, 5xx, 시간 초과, 연결).
+
+    code로 한도 초과·시간 초과·연결 실패를 구분한다. 기본값은 연결 실패(llm_unavailable)다.
+    """
+
+    def __init__(self, message: str, code: str = "llm_unavailable") -> None:
+        super().__init__(message)
+        self.code = code
 
 
 class LlmOutputError(Exception):
@@ -50,6 +60,69 @@ class LlmProvider(Protocol):
     def generate_json(
         self, system: str, user: str, schema: dict[str, Any], max_output_tokens: int
     ) -> LlmResult: ...
+
+
+# 모델이 받지 않을 수 있는 선택 인자. 거부되면 하나씩 빼고 다시 부른다
+_OPTIONAL_PARAMS = ("response_format", "temperature")
+
+
+def _short(exc: BaseException, limit: int = 200) -> str:
+    """오류 설명을 한 줄로 줄인다 (API 키가 들어갈 일은 없지만 길이는 제한한다)."""
+    return " ".join(str(exc).split())[:limit]
+
+
+def _rejected_param(kwargs: dict[str, Any], exc: BaseException) -> str | None:
+    text = str(exc).lower()
+    for param in _OPTIONAL_PARAMS:
+        if param in kwargs and (param in text or (param == "response_format" and "json_object" in text)):
+            return param
+    return None
+
+
+def _complete_dropping_unsupported(litellm: Any, litellm_exc: Any, kwargs: dict[str, Any]) -> Any:
+    """선택 인자(response_format, temperature)를 모델이 거부하면 그 인자만 빼고 다시 부른다.
+
+    예: 일부 Gemini 3 계열은 temperature를, 일부 로컬 모델은 response_format을 받지 않는다.
+    인자는 한 번에 하나씩 빠지므로 무한히 반복하지 않는다.
+    """
+    kwargs = dict(kwargs)
+    while True:
+        try:
+            return litellm.completion(**kwargs)
+        except litellm_exc.BadRequestError as exc:
+            param = _rejected_param(kwargs, exc)
+            if param is None or isinstance(exc, litellm_exc.ContentPolicyViolationError):
+                raise
+            logger.info("model rejected %r; retrying without it", param)
+            kwargs.pop(param)
+
+
+def _translate_litellm_error(litellm_exc: Any, exc: Exception, model_id: str) -> Exception:
+    """LiteLLM 예외를 앱의 오류로 바꾼다. 원인을 구분하는 code를 붙이고 한 줄 로그를 남긴다."""
+    logger.warning("llm call failed: model=%s error=%s: %s", model_id, type(exc).__name__, _short(exc))
+    if isinstance(exc, (litellm_exc.AuthenticationError, litellm_exc.PermissionDeniedError)):
+        return LlmUnavailableError("llm_auth_failed", "the API key was rejected")
+    if isinstance(exc, litellm_exc.NotFoundError):
+        return LlmUnavailableError("llm_model_not_found", "the model or endpoint was not found")
+    if isinstance(exc, litellm_exc.RateLimitError):
+        return LlmTransientError("rate limited", "llm_rate_limited")
+    if isinstance(exc, (litellm_exc.Timeout, TimeoutError)):
+        return LlmTransientError("timed out", "llm_timeout")
+    if isinstance(
+        exc,
+        (
+            litellm_exc.APIConnectionError,
+            litellm_exc.ServiceUnavailableError,
+            litellm_exc.InternalServerError,
+            OSError,
+        ),
+    ):
+        return LlmTransientError(type(exc).__name__)
+    if isinstance(exc, litellm_exc.ContentPolicyViolationError):
+        return LlmOutputError("llm_blocked", "prompt blocked by content policy")
+    if isinstance(exc, litellm_exc.BadRequestError):
+        return LlmOutputError("llm_request_rejected", f"request rejected: {_short(exc)}")
+    return LlmTransientError(type(exc).__name__)
 
 
 class LiteLlmProvider:
@@ -102,34 +175,9 @@ class LiteLlmProvider:
             kwargs["api_base"] = self.api_base
 
         try:
-            try:
-                response = litellm.completion(**kwargs)
-            except litellm_exc.BadRequestError as exc:
-                # 일부 로컬/구형 모델이 response_format={"type": "json_object"}를 지원하지 않는 경우 폴백
-                if "response_format" in str(exc).lower() or "json_object" in str(exc).lower():
-                    kwargs.pop("response_format", None)
-                    response = litellm.completion(**kwargs)
-                else:
-                    raise
-        except (litellm_exc.AuthenticationError, litellm_exc.PermissionDeniedError) as exc:
-            raise LlmUnavailableError("llm_auth_failed", "the API key was rejected") from exc
-        except litellm_exc.RateLimitError as exc:
-            raise LlmTransientError("rate limited") from exc
-        except (
-            litellm_exc.APIConnectionError,
-            litellm_exc.ServiceUnavailableError,
-            litellm_exc.Timeout,
-            litellm_exc.InternalServerError,
-            TimeoutError,
-            OSError,
-        ) as exc:
-            raise LlmTransientError(type(exc).__name__) from exc
-        except litellm_exc.ContentPolicyViolationError as exc:
-            raise LlmOutputError("llm_blocked", "prompt blocked by content policy") from exc
-        except litellm_exc.BadRequestError as exc:
-            raise LlmOutputError("llm_request_rejected", f"request rejected: {exc}") from exc
+            response = _complete_dropping_unsupported(litellm, litellm_exc, kwargs)
         except Exception as exc:
-            raise LlmTransientError(type(exc).__name__) from exc
+            raise _translate_litellm_error(litellm_exc, exc, self.model_id) from exc
 
         choices = getattr(response, "choices", None) or []
         if not choices:

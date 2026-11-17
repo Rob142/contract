@@ -72,11 +72,28 @@ const MESSAGES: Record<string, string> = {
   too_many_requests: '요청이 너무 많아요. 잠시 후 다시 시도해 주세요.',
   share_link_exists: '이미 공유 링크가 있어요. 다시 발급해 주세요.',
   attachment_linked: '인보이스에 연결된 자료라 삭제할 수 없어요.',
+  llm_model_not_found: '모델 이름이나 엔드포인트 주소를 찾을 수 없어요. 모델명과 Base URL을 확인해 주세요.',
+  llm_rate_limited: '요청 한도를 넘었어요. 잠시 후 다시 시도하거나 사용량·요금제를 확인해 주세요.',
+  llm_timeout: '모델 서버가 시간 안에 응답하지 않았어요. 잠시 후 다시 시도해 주세요.',
+  llm_request_rejected: '모델이 요청을 받아들이지 않았어요.',
+  llm_blocked: '모델이 안전 정책으로 응답을 막았어요. 다른 모델로 시도해 주세요.',
+  llm_truncated: '모델 응답이 길이 제한에서 잘렸어요. 다시 시도해 주세요.',
   invalid_result: '이 분석의 검토 항목이 아니에요.',
+}
+
+/** 서버가 보낸 한 줄 설명을 문구 뒤에 붙이는 코드: 사용자가 원인을 짚을 수 있어야 하는 경우 */
+const DETAIL_CODES: Record<string, RegExp> = {
+  llm_request_rejected: /^request rejected:\s*/,
 }
 
 export function messageOf(error: unknown): string {
   if (error instanceof ApiError) {
+    const pattern = DETAIL_CODES[error.code]
+    const base = MESSAGES[error.code]
+    if (pattern && base) {
+      const detail = error.message.replace(pattern, '').trim()
+      return detail ? `${base} (${detail})` : base
+    }
     return MESSAGES[error.code] ?? (error.status >= 500 ? '서버 오류가 발생했어요. 잠시 후 다시 시도해 주세요.' : '요청을 처리하지 못했어요.')
   }
   return '알 수 없는 오류가 발생했어요.'

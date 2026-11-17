@@ -112,7 +112,7 @@ def process_analyze(job: ClaimedJob) -> None:
             logger.info("job %s failed: %s", job.id, exc.code)
         except Exception as exc:  # noqa: BLE001 - 통신 오류 등은 재시도
             db.rollback()
-            code = "llm_unavailable" if isinstance(exc, LlmTransientError) else "internal_error"
+            code = exc.code if isinstance(exc, LlmTransientError) else "internal_error"
             if requeue_job(db, job, code, type(exc).__name__):
                 logger.warning("job %s will retry after %s", job.id, type(exc).__name__)
             elif finish_job(db, job, "failed", code, type(exc).__name__):
