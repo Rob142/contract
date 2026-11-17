@@ -32,6 +32,8 @@ type FormState = {
   jobType: JobType
   startDate: string
   dueDate: string
+  draftDeliveryDate: string
+  draftDeliveryExempt: boolean
   amount: string
   status: ProjectStatus
   useTemplate: boolean
@@ -43,7 +45,10 @@ function validate(f: FormState): Record<string, string> {
   if (!f.name.trim()) errors.name = '프로젝트명을 입력해 주세요.'
   if (f.clientChoice === NEW_CLIENT && !f.newClientName.trim()) errors.client = '거래처 이름을 입력해 주세요.'
   if (!f.clientChoice) errors.client = '거래처를 선택해 주세요.'
-  if (f.startDate && f.dueDate && f.dueDate < f.startDate) errors.due_date = '최종 납기는 시작일 이후여야 해요.'
+  if (f.startDate && f.dueDate && f.dueDate < f.startDate) errors.due_date = '납기는 시작일 이후여야 해요.'
+  if (f.jobType === 'video' && !f.draftDeliveryExempt && f.draftDeliveryDate && f.dueDate && f.draftDeliveryDate > f.dueDate) {
+    errors.due_date = '업로드일은 초안 전달일 이후여야 해요.'
+  }
   return errors
 }
 
@@ -83,8 +88,10 @@ function ProjectFormDialog({ title, initial, project, onClose }: ProjectFormProp
     const common = {
       name: form.name.trim(),
       job_type: form.jobType,
-      start_date: form.startDate || null,
+      start_date: form.jobType === 'video' && !project ? null : form.startDate || null,
       due_date: form.dueDate || null,
+      draft_delivery_date: form.jobType === 'video' && !form.draftDeliveryExempt ? form.draftDeliveryDate || null : null,
+      draft_delivery_exempt: form.jobType === 'video' ? form.draftDeliveryExempt : null,
       contract_amount: form.amount || '0',
       included_revisions: form.includedRevisions === '' ? null : Number(form.includedRevisions),
     }
@@ -151,7 +158,10 @@ function ProjectFormDialog({ title, initial, project, onClose }: ProjectFormProp
           label="직업군"
           options={JOB_OPTIONS}
           value={form.jobType}
-          onChange={(e) => set('jobType', e.target.value as JobType)}
+          onChange={(e) => {
+            const jobType = e.target.value as JobType
+            setForm((f) => ({ ...f, jobType, startDate: !project && jobType === 'video' ? '' : f.startDate }))
+          }}
         />
         {form.clientChoice === NEW_CLIENT && (
           <TextField
@@ -163,9 +173,25 @@ function ProjectFormDialog({ title, initial, project, onClose }: ProjectFormProp
             fieldClassName="span-2"
           />
         )}
-        <TextField label="시작일" type="date" value={form.startDate} onChange={(e) => set('startDate', e.target.value)} />
+        {form.jobType === 'video' ? (
+          <div>
+            <TextField
+              label="초안 전달일"
+              type="date"
+              value={form.draftDeliveryExempt ? '' : form.draftDeliveryDate}
+              disabled={form.draftDeliveryExempt}
+              onChange={(e) => set('draftDeliveryDate', e.target.value)}
+            />
+            <label className="checkbox">
+              <input type="checkbox" checked={form.draftDeliveryExempt} onChange={(e) => set('draftDeliveryExempt', e.target.checked)} />
+              <span>초안 전달 의무 없음</span>
+            </label>
+          </div>
+        ) : (
+          <TextField label="시작일" type="date" value={form.startDate} onChange={(e) => set('startDate', e.target.value)} />
+        )}
         <TextField
-          label="최종 납기"
+          label={form.jobType === 'video' ? '업로드일' : '최종 납기'}
           type="date"
           value={form.dueDate}
           min={form.startDate || undefined}
@@ -225,6 +251,8 @@ export function NewProjectDialog({ defaultJobType, onClose }: { defaultJobType: 
         jobType: defaultJobType,
         startDate: '',
         dueDate: '',
+        draftDeliveryDate: '',
+        draftDeliveryExempt: false,
         amount: '',
         status: 'active',
         useTemplate: true,
@@ -247,6 +275,8 @@ export function EditProjectDialog({ project, onClose }: { project: ProjectDetail
         jobType: project.job_type,
         startDate: project.start_date ?? '',
         dueDate: project.due_date ?? '',
+        draftDeliveryDate: project.draft_delivery_date ?? '',
+        draftDeliveryExempt: project.draft_delivery_exempt ?? false,
         amount: project.contract_amount === '0' ? '' : project.contract_amount,
         status: project.status,
         useTemplate: false,

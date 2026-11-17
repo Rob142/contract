@@ -3001,6 +3001,10 @@ export interface components {
             start_date?: string | null;
             /** Due Date */
             due_date?: string | null;
+            /** Draft Delivery Date */
+            draft_delivery_date?: string | null;
+            /** Draft Delivery Exempt */
+            draft_delivery_exempt?: boolean | null;
             /**
              * Contract Amount
              * @default 0
@@ -3066,6 +3070,10 @@ export interface components {
             contract_id?: string | null;
             /** Included Revisions */
             included_revisions?: number | null;
+            /** Draft Delivery Date */
+            draft_delivery_date?: string | null;
+            /** Draft Delivery Exempt */
+            draft_delivery_exempt?: boolean | null;
             /** Payment Terms */
             payment_terms: components["schemas"]["PaymentTermOut"][];
         };
@@ -3207,6 +3215,10 @@ export interface components {
             start_date?: string | null;
             /** Due Date */
             due_date?: string | null;
+            /** Draft Delivery Date */
+            draft_delivery_date?: string | null;
+            /** Draft Delivery Exempt */
+            draft_delivery_exempt?: boolean | null;
             /** Contract Amount */
             contract_amount?: number | string | null;
             /** Status */

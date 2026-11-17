@@ -172,6 +172,8 @@ def get_detail(db: Session, owner_id: UUID, project_id: UUID) -> ProjectDetail:
         **summary.model_dump(),
         contract_id=contract_id,
         included_revisions=row.Project.included_revisions,
+        draft_delivery_date=row.Project.draft_delivery_date,
+        draft_delivery_exempt=row.Project.draft_delivery_exempt,
         payment_terms=out_terms,
     )
 

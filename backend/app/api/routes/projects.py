@@ -76,6 +76,8 @@ def create_project(
         job_type=body.job_type or user.job_type,
         start_date=body.start_date,
         due_date=body.due_date,
+        draft_delivery_date=body.draft_delivery_date,
+        draft_delivery_exempt=body.draft_delivery_exempt,
         contract_amount=body.contract_amount,
         included_revisions=body.included_revisions,
     )
@@ -123,6 +125,13 @@ def update_project(
     if start and due and due < start:
         raise AppError(
             422, "validation_error", "due_date must be on or after start_date", {"fields": ["due_date"]}
+        )
+
+    draft_date = changes.get("draft_delivery_date", project.draft_delivery_date)
+    draft_exempt = changes.get("draft_delivery_exempt", project.draft_delivery_exempt)
+    if (draft_exempt and draft_date) or (draft_date and due and draft_date > due):
+        raise AppError(
+            422, "validation_error", "invalid draft delivery date", {"fields": ["draft_delivery_date"]}
         )
 
     for field, value in changes.items():

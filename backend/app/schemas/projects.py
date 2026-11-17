@@ -66,6 +66,8 @@ class ProjectCreate(BaseModel):
     job_type: JobType | None = None
     start_date: date | None = None
     due_date: date | None = None
+    draft_delivery_date: date | None = None
+    draft_delivery_exempt: bool | None = None
     contract_amount: Won = Field(default=Decimal(0))
     # true면 직군별 기본 단계를 작업으로 만든다
     use_template: bool = False
@@ -76,6 +78,10 @@ class ProjectCreate(BaseModel):
         if (self.client_id is None) == (self.new_client_name is None):
             raise ValueError("provide exactly one of client_id or new_client_name")
         _check_dates(self.start_date, self.due_date)
+        if self.draft_delivery_exempt and self.draft_delivery_date:
+            raise ValueError("draft delivery date must be empty when exempt")
+        if self.draft_delivery_date and self.due_date and self.draft_delivery_date > self.due_date:
+            raise ValueError("draft delivery date must be on or before upload date")
         return self
 
 
@@ -87,6 +93,8 @@ class ProjectUpdate(BaseModel):
     job_type: JobType | None = None
     start_date: date | None = None
     due_date: date | None = None
+    draft_delivery_date: date | None = None
+    draft_delivery_exempt: bool | None = None
     contract_amount: Won | None = None
     status: ProjectStatus | None = None
     included_revisions: int | None = Field(default=None, ge=0, le=99)
@@ -135,6 +143,8 @@ class ProjectSummary(BaseModel):
 class ProjectDetail(ProjectSummary):
     contract_id: UUID | None = None
     included_revisions: int | None = None
+    draft_delivery_date: date | None = None
+    draft_delivery_exempt: bool | None = None
     payment_terms: list[PaymentTermOut]
 
 

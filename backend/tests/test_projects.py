@@ -73,6 +73,33 @@ def test_project_validation(client: TestClient) -> None:
     assert res.status_code == 422
 
 
+def test_video_draft_delivery_schedule(client: TestClient) -> None:
+    register(client)
+    project = make_project(
+        client, job_type="video", start_date=None, due_date="2026-11-27",
+        draft_delivery_date="2026-11-20", draft_delivery_exempt=False,
+    )
+    project_id = project["id"]
+    saved = client.get(f"{API}/projects/{project_id}").json()
+    assert saved["draft_delivery_date"] == "2026-11-20"
+    assert saved["draft_delivery_exempt"] is False
+    assert saved["due_date"] == "2026-11-27"
+
+    changed = client.patch(
+        f"{API}/projects/{project_id}",
+        json={"draft_delivery_date": None, "draft_delivery_exempt": True},
+    )
+    assert changed.status_code == 200
+    assert changed.json()["draft_delivery_exempt"] is True
+    assert changed.json()["draft_delivery_date"] is None
+    invalid = client.patch(f"{API}/projects/{project_id}", json={"draft_delivery_date": "2026-11-20"})
+    assert invalid.status_code == 422
+    assert client.patch(
+        f"{API}/projects/{project_id}",
+        json={"draft_delivery_exempt": False, "draft_delivery_date": "2026-11-28"},
+    ).status_code == 422
+
+
 def test_other_users_cannot_see_or_use_projects(client: TestClient) -> None:
     register(client, email="a@example.com")
     project = make_project(client)

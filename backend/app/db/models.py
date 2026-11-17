@@ -131,6 +131,8 @@ class Project(TimestampMixin, Base):
     job_type: Mapped[str] = mapped_column(Text)
     start_date: Mapped[date | None]
     due_date: Mapped[date | None]
+    draft_delivery_date: Mapped[date | None]
+    draft_delivery_exempt: Mapped[bool | None]
     contract_amount: Mapped[Decimal] = mapped_column(Numeric(14, 0), server_default="0")
     currency: Mapped[str] = mapped_column(Text, server_default="KRW")
     status: Mapped[str] = mapped_column(Text, server_default="active")

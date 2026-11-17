@@ -454,7 +454,9 @@ export function ProjectDetailPage() {
   const p = project.data
   const status = PROJECT_STATUS[p.status]
   const period =
-    p.start_date || p.due_date
+    p.job_type === 'video' && p.draft_delivery_exempt != null
+      ? `초안 전달 ${p.draft_delivery_exempt ? '의무 없음' : p.draft_delivery_date ? formatFullDate(p.draft_delivery_date) : '미정'} · 업로드 ${p.due_date ? formatFullDate(p.due_date) : '미정'}`
+      : p.start_date || p.due_date
       ? `${p.start_date ? formatFullDate(p.start_date) : '시작일 미정'} — ${p.due_date ? formatShortDate(p.due_date) : '납기 미정'}`
       : '기간 미정'
   const openTask = tasks.data?.find((t) => t.id === openTaskId)
@@ -499,7 +501,8 @@ export function ProjectDetailPage() {
           </strong>
         </span>
         <span>
-          <span className="muted">최종 납기</span> <strong>{p.due_date ? formatMonthDay(p.due_date) : '미정'}</strong>
+          <span className="muted">{p.job_type === 'video' && p.draft_delivery_exempt != null ? '업로드일' : '최종 납기'}</span>{' '}
+          <strong>{p.due_date ? formatMonthDay(p.due_date) : '미정'}</strong>
         </span>
         <span>
           <span className="muted">계약 지급 조건</span> <strong>{paymentTermsText(p)}</strong>
