@@ -30,6 +30,7 @@ class User(TimestampMixin, Base):
     password_hash: Mapped[str] = mapped_column(Text)
     name: Mapped[str] = mapped_column(Text)
     job_type: Mapped[str] = mapped_column(Text)
+    preferred_mode: Mapped[str] = mapped_column(Text, server_default="freelancer")
     default_llm_mode: Mapped[str] = mapped_column(Text, server_default="ask")
     commercial_llm_model: Mapped[str | None] = mapped_column(Text)
     commercial_llm_api_key: Mapped[str | None] = mapped_column(Text)
@@ -144,6 +145,7 @@ class Task(TimestampMixin, Base):
     project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
     title: Mapped[str] = mapped_column(Text)
     label: Mapped[str | None] = mapped_column(Text)
+    client_visible: Mapped[bool] = mapped_column(server_default="false")
     status: Mapped[str] = mapped_column(Text, server_default="todo")
     position: Mapped[int] = mapped_column(server_default="0")
     due_date: Mapped[date | None]
@@ -393,6 +395,7 @@ class InvoiceItem(TimestampMixin, Base):
     amount: Mapped[Decimal] = mapped_column(Numeric(14, 0))
     basis_note: Mapped[str | None] = mapped_column(Text)
     basis_confirmed_at: Mapped[datetime | None]
+    approval_version_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("client_delivery_versions.id"))
 
     allocations: Mapped[list["BillingAllocation"]] = relationship(
         lazy="selectin", cascade="all, delete-orphan"
@@ -567,3 +570,159 @@ class PortfolioQuote(Base):
     feedback_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("task_feedback.id", ondelete="CASCADE"))
     quote: Mapped[str] = mapped_column(Text)
     anonymize: Mapped[bool] = mapped_column(server_default="true")
+
+
+class Workspace(Base):
+    __tablename__ = "workspaces"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+
+class WorkspaceMember(Base):
+    __tablename__ = "workspace_members"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    workspace_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"))
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    role: Mapped[str] = mapped_column(Text)
+
+
+class ClientProjectLink(Base):
+    __tablename__ = "client_project_links"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    workspace_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"))
+    approver_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+
+class ClientProjectMember(Base):
+    __tablename__ = "client_project_members"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    link_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("client_project_links.id", ondelete="CASCADE"))
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    can_finance: Mapped[bool] = mapped_column(server_default="false")
+
+
+class ClientInvitation(Base):
+    __tablename__ = "client_invitations"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    creator_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    workspace_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"))
+    project_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    email: Mapped[str] = mapped_column(Text)
+    role: Mapped[str] = mapped_column(Text)
+    token_hash: Mapped[str] = mapped_column(Text)
+    expires_at: Mapped[datetime]
+    used_at: Mapped[datetime | None]
+    revoked_at: Mapped[datetime | None]
+    mail_status: Mapped[str] = mapped_column(Text, server_default="not_sent")
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+
+class ClientDelivery(Base):
+    __tablename__ = "client_deliveries"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    title: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+
+class ClientDeliveryVersion(Base):
+    __tablename__ = "client_delivery_versions"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    delivery_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("client_deliveries.id", ondelete="CASCADE"))
+    seq: Mapped[int]
+    payload: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    due_date: Mapped[date | None]
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+
+class ClientReviewEvent(Base):
+    __tablename__ = "client_review_events"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    version_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("client_delivery_versions.id", ondelete="CASCADE")
+    )
+    actor_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    actor_name: Mapped[str] = mapped_column(Text)
+    workspace_name: Mapped[str] = mapped_column(Text)
+    kind: Mapped[str] = mapped_column(Text)
+    body: Mapped[str] = mapped_column(Text, default="")
+    revision_request_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("revision_requests.id"))
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+
+class FreelancerProfile(Base):
+    __tablename__ = "freelancer_profiles"
+    id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    published: Mapped[bool] = mapped_column(server_default="false")
+    payload: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
+    updated_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+
+class ClientInquiry(Base):
+    __tablename__ = "client_inquiries"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    workspace_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"))
+    creator_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    freelancer_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    payload: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    status: Mapped[str] = mapped_column(Text, server_default="draft")
+    project_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("projects.id"))
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+
+class ClientQuoteVersion(Base):
+    __tablename__ = "client_quote_versions"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    inquiry_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("client_inquiries.id", ondelete="CASCADE"))
+    seq: Mapped[int]
+    payload: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    accepted_at: Mapped[datetime | None]
+    accepted_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+
+class ClientInquiryMessage(Base):
+    __tablename__ = "client_inquiry_messages"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    inquiry_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("client_inquiries.id", ondelete="CASCADE"))
+    actor_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    actor_name: Mapped[str] = mapped_column(Text)
+    body: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+
+class ClientExtraAcceptance(Base):
+    __tablename__ = "client_extra_acceptances"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    quote_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("extra_quotes.id", ondelete="CASCADE"))
+    actor_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    payload: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+
+class ProjectChatSession(Base):
+    __tablename__ = "project_chat_sessions"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    requested_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    responded_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
+    topic: Mapped[str] = mapped_column(Text)
+    state: Mapped[str] = mapped_column(Text)
+    expires_at: Mapped[datetime | None]
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+
+class ProjectMessage(Base):
+    __tablename__ = "project_messages"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    session_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("project_chat_sessions.id"))
+    actor_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    actor_name: Mapped[str] = mapped_column(Text)
+    actor_side: Mapped[str] = mapped_column(Text)
+    body: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())

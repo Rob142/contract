@@ -131,6 +131,7 @@ class InvoiceItemIn(BaseModel):
     # 지급 요건 확인 (예: "최종 납품 및 검수 확인"). 요건이 있는 지급 단계는 발행 전에 필수
     basis_note: str | None = Field(default=None, max_length=200)
     basis_confirmed: bool = False
+    approval_version_id: UUID | None = None
 
     @model_validator(mode="after")
     def _validate(self) -> Self:
@@ -210,6 +211,7 @@ class InvoiceItemOut(BaseModel):
     task_id: UUID | None
     basis_note: str | None
     basis_confirmed_at: datetime | None
+    approval_version_id: UUID | None = None
 
 
 class InvoiceSummary(BaseModel):

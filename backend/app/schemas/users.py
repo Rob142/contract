@@ -14,6 +14,7 @@ class RegisterIn(BaseModel):
     password: str = Field(min_length=8, max_length=128)
     job_type: JobType
     agree_terms: bool
+    preferred_mode: Literal["freelancer", "client"] = "freelancer"
 
 
 class LoginIn(BaseModel):
@@ -47,6 +48,7 @@ class UserOut(BaseModel):
     email: str
     name: str
     job_type: JobType
+    preferred_mode: Literal["freelancer", "client"] = "freelancer"
     default_llm_mode: LlmMode
     commercial_llm_model: str | None = None
     commercial_llm_api_base: str | None = None
@@ -67,6 +69,7 @@ class UserUpdate(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    preferred_mode: Literal["freelancer", "client"] | None = None
     name: str | None = Field(default=None, min_length=1, max_length=50)
     job_type: JobType | None = None
     default_llm_mode: LlmMode | None = None

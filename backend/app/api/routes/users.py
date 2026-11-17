@@ -14,7 +14,7 @@ from app.schemas.users import LlmModelCreate, PasswordChangeIn, UserOut, UserUpd
 router = APIRouter(prefix="/users", tags=["users"])
 
 # null로 비울 수 없는 필드
-_REQUIRED_FIELDS = {"name", "job_type", "default_llm_mode"}
+_REQUIRED_FIELDS = {"name", "job_type", "default_llm_mode", "preferred_mode"}
 
 
 def _sync_active_llm_fields(user: User) -> None:

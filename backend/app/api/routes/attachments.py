@@ -203,6 +203,19 @@ def delete_attachment(
     storage: FileStorage = Depends(get_storage),
 ) -> None:
     att = _owned_attachment(db, user.id, attachment_id)
+    from app.db.models import ClientDelivery, ClientDeliveryVersion
+
+    published = any(
+        str(att.id) == x["id"]
+        for v in db.scalars(
+            select(ClientDeliveryVersion)
+            .join(ClientDelivery)
+            .where(ClientDelivery.project_id == att.project_id)
+        )
+        for x in v.payload["attachments"]
+    )
+    if published:
+        raise AppError(409, "attachment_published", "제출된 결과물 버전의 파일은 삭제할 수 없습니다")
     if att.invoice_id is not None:
         raise AppError(409, "attachment_linked", "this document is linked to an invoice")
     stored = db.get(StoredFile, att.file_id) if att.file_id else None

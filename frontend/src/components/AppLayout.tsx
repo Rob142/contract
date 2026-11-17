@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router'
 
-import { useLogout, type User } from '../api/auth'
+import { useLogout, useUpdateMe, type User } from '../api/auth'
 import { avatarInitial } from '../lib/format'
 import { ContractToast } from './Toast'
 import { BoardIcon, ChevronDownIcon, FileIcon, HomeIcon, LedgerIcon, PortfolioIcon, ReceiptIcon } from './icons'
@@ -77,22 +77,49 @@ function UserMenu({ user }: { user: User }) {
 }
 
 export function AppLayout({ user }: { user: User }) {
+  const location = useLocation()
+  const navigate = useNavigate()
+  const update = useUpdateMe()
+  const clientMode = location.pathname.startsWith('/client/') || location.pathname === '/client'
   return (
     <>
       <header className="app-header">
         <div className="app-header-inner">
-          <Link to="/dashboard" className="logo">
+          <Link to={clientMode ? '/client' : '/dashboard'} className="logo">
             Freelance Hub
           </Link>
           <nav className="top-nav" aria-label="주요 메뉴">
-            {NAV_ITEMS.map(({ to, label }) => (
+            {(clientMode ? [] : NAV_ITEMS).map(({ to, label }) => (
               <NavLink key={to} to={to}>
                 {label}
               </NavLink>
             ))}
           </nav>
           <div className="header-right">
-            <span className="workspace-label">개인 워크스페이스</span>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              disabled={update.isPending}
+              onClick={() => {
+                const mode = clientMode ? 'freelancer' : 'client'
+                update.mutate(
+                  { preferred_mode: mode },
+                  { onSuccess: () => navigate(mode === 'client' ? '/client' : '/dashboard') },
+                )
+              }}
+            >
+              {clientMode ? '프리랜서로 전환' : '클라이언트로 전환'}
+            </button>
+            {!clientMode && (
+              <Link to="/client-requests" className="workspace-label">
+                받은 의뢰
+              </Link>
+            )}
+            {!clientMode && (
+              <Link to="/client-profile" className="workspace-label">
+                공개 프로필
+              </Link>
+            )}
             <UserMenu user={user} />
           </div>
         </div>
@@ -104,7 +131,7 @@ export function AppLayout({ user }: { user: User }) {
 
       {/* 모바일 하단 탭바 (640px 미만에서만 표시) */}
       <nav className="bottom-tabs" aria-label="주요 메뉴">
-        {NAV_ITEMS.map(({ to, label, Icon }) => (
+        {(clientMode ? [] : NAV_ITEMS).map(({ to, label, Icon }) => (
           <NavLink key={to} to={to}>
             <Icon size={22} />
             {label}

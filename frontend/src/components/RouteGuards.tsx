@@ -48,6 +48,18 @@ export function GuestOnly() {
   const [searchParams] = useSearchParams()
 
   if (me.isPending) return <FullScreenLoading />
-  if (me.data) return <Navigate to={safeNextPath(searchParams.get('next'))} replace />
+  if (me.data)
+    return (
+      <Navigate
+        to={safeNextPath(searchParams.get('next'), me.data.preferred_mode === 'client' ? '/client' : '/dashboard')}
+        replace
+      />
+    )
   return <AuthLayout />
+}
+
+/** Entry point honors the saved UI preference; authorization stays on the server. */
+export function EntryPage() {
+  const me = useMe()
+  return <Navigate to={me.data?.preferred_mode === 'client' ? '/client' : '/dashboard'} replace />
 }

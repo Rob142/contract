@@ -4,8 +4,10 @@ from app.api.routes import (
     analysis,
     attachments,
     auth,
+    client_service,
     clients,
     contracts,
+    conversations,
     dashboard,
     health,
     invoices,
@@ -37,3 +39,5 @@ api_router.include_router(public.router)
 api_router.include_router(portfolio.router)
 api_router.include_router(portfolio.public_router)
 api_router.include_router(settlement.router)
+api_router.include_router(client_service.router)
+api_router.include_router(conversations.router)

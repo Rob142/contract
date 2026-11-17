@@ -27,6 +27,7 @@ export function RegisterPage() {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [mode, setMode] = useState<'freelancer' | 'client'>('freelancer')
   const [jobType, setJobType] = useState<JobType>('design')
   const [agreeTerms, setAgreeTerms] = useState(false)
   const [agreePrivacy, setAgreePrivacy] = useState(false)
@@ -49,7 +50,14 @@ export function RegisterPage() {
     e.preventDefault()
     setTouched(true)
     if (Object.keys(clientErrors).length > 0 || !agree) return
-    register.mutate({ name: name.trim(), email: email.trim(), password, job_type: jobType, agree_terms: agree })
+    register.mutate({
+      name: name.trim(),
+      email: email.trim(),
+      password,
+      job_type: jobType,
+      agree_terms: agree,
+      preferred_mode: mode,
+    })
   }
 
   const loginHref = searchParams.get('next') ? `/login?${searchParams.toString()}` : '/login'
@@ -62,6 +70,18 @@ export function RegisterPage() {
         <p>계약과 프로젝트 관리를 시작하세요.</p>
       </div>
 
+      <fieldset className="consent-group">
+        <legend>어떻게 이용하시겠어요?</legend>
+        <label className="checkbox">
+          <input type="radio" name="mode" checked={mode === 'freelancer'} onChange={() => setMode('freelancer')} />
+          프리랜서 · 일을 수주하고 관리해요
+        </label>
+        <label className="checkbox">
+          <input type="radio" name="mode" checked={mode === 'client'} onChange={() => setMode('client')} />
+          클라이언트 · 전문가에게 일을 맡겨요
+        </label>
+        <p className="field-hint">가입 후에도 두 화면을 전환할 수 있습니다.</p>
+      </fieldset>
       <TextField
         label="이름"
         autoComplete="name"
@@ -103,14 +123,32 @@ export function RegisterPage() {
       <fieldset className="consent-group">
         <legend>필수 동의</legend>
         <label className="checkbox">
-          <input name="agree_terms" type="checkbox" required checked={agreeTerms} onChange={(e) => setAgreeTerms(e.target.checked)} aria-invalid={touched && !agreeTerms || undefined} />
+          <input
+            name="agree_terms"
+            type="checkbox"
+            required
+            checked={agreeTerms}
+            onChange={(e) => setAgreeTerms(e.target.checked)}
+            aria-invalid={(touched && !agreeTerms) || undefined}
+          />
           [필수] 이용약관 동의
         </label>
         <label className="checkbox">
-          <input name="agree_privacy" type="checkbox" required checked={agreePrivacy} onChange={(e) => setAgreePrivacy(e.target.checked)} aria-invalid={touched && !agreePrivacy || undefined} />
+          <input
+            name="agree_privacy"
+            type="checkbox"
+            required
+            checked={agreePrivacy}
+            onChange={(e) => setAgreePrivacy(e.target.checked)}
+            aria-invalid={(touched && !agreePrivacy) || undefined}
+          />
           [필수] 개인정보 수집·이용 동의
         </label>
-        {touched && !agree && <p className="field-error" role="alert">필수 항목 두 가지에 각각 동의해 주세요.</p>}
+        {touched && !agree && (
+          <p className="field-error" role="alert">
+            필수 항목 두 가지에 각각 동의해 주세요.
+          </p>
+        )}
       </fieldset>
       <fieldset className="consent-group">
         <legend>선택 동의</legend>

@@ -1,3 +1,4 @@
+import { FreelancerClientPanel } from "./ClientProjectView"
 import { AttachmentsCard, FeedbackCard, RevisionCard, ShareCard } from '../components/ProjectSharePanels'
 import { useState } from 'react'
 import { Link, useOutletContext, useParams, useSearchParams } from 'react-router'
@@ -560,6 +561,7 @@ export function ProjectDetailPage() {
       <div className="stack" style={{ marginTop: 24 }}>
         <ShareCard projectId={p.id} />
         <AttachmentsCard projectId={p.id} tasks={tasks.data ?? []} />
+        <FreelancerClientPanel id={p.id} />
         <RevisionCard projectId={p.id} included={p.included_revisions ?? null} />
         <FeedbackCard projectId={p.id} tasks={tasks.data ?? []} />
       </div>

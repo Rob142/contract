@@ -1,3 +1,4 @@
+import { useCS, type ClientProject } from '../api/clientService'
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 
@@ -16,7 +17,13 @@ import { SelectField, TextField } from '../components/Field'
 import { EmptyState, LoadError, Loading } from '../components/ui'
 import { formatWon, groupDigits } from '../lib/format'
 
-type StagePick = { checked: boolean; amount: string; basisNote: string; basisConfirmed: boolean }
+type StagePick = {
+  checked: boolean
+  amount: string
+  basisNote: string
+  basisConfirmed: boolean
+  approvalVersion: string
+}
 type ExtraRow = { description: string; detail: string; amount: string }
 
 /** 시간 × 단가를 정수 연산으로 원 단위 반올림 (서버와 같은 규칙, 미리보기용) */
@@ -42,65 +49,134 @@ function InvoiceForm({
   const navigate = useNavigate()
   const save = useSaveInvoice(initial?.id)
   const items = initial?.items ?? []
+  const clientProject = useCS<ClientProject>(`/projects/${projectId}`)
+  const approvals =
+    clientProject.data?.deliveries.filter(
+      (d) => d.current && d.state === 'approved',
+    ) ?? []
 
   // 제목을 직접 고치기 전에는 고른 항목으로 자동 제안한다 (UX 문서 4장 A)
-  const [manualTitle, setManualTitle] = useState<string | null>(initial?.title ?? null)
+  const [manualTitle, setManualTitle] = useState<string | null>(
+    initial?.title ?? null,
+  )
+  const [globalApproval, setGlobalApproval] = useState(
+    initial?.items[0]?.approval_version_id ?? '',
+  )
   const [dueDate, setDueDate] = useState(initial?.due_date ?? '')
   const [stages, setStages] = useState<Record<string, StagePick>>(() =>
     Object.fromEntries(
       candidates.payment_terms.map((t) => {
-        const existing = items.find((i) => i.kind === 'payment_stage' && i.payment_term_id === t.payment_term_id)
+        const existing = items.find(
+          (i) =>
+            i.kind === 'payment_stage' &&
+            i.payment_term_id === t.payment_term_id,
+        )
         return [
           t.payment_term_id,
           {
             checked: Boolean(existing),
-            amount: existing?.unit_price ?? (t.remaining_amount === '0' ? '' : t.remaining_amount),
-            basisNote: existing?.basis_note ?? (t.requirement ? `${t.requirement.replace(/\s*후$/, '')} 확인` : ''),
+            amount:
+              existing?.unit_price ??
+              (t.remaining_amount === '0' ? '' : t.remaining_amount),
+            basisNote:
+              existing?.basis_note ??
+              (t.requirement
+                ? `${t.requirement.replace(/\s*후$/, '')} 확인`
+                : ''),
             basisConfirmed: Boolean(existing?.basis_confirmed_at),
+            approvalVersion: existing?.approval_version_id ?? '',
           },
         ]
       }),
     ),
   )
-  const hourlyTasks = candidates.tasks.filter((t) => t.hours !== null && t.hourly_rate !== null)
+  const hourlyTasks = candidates.tasks.filter(
+    (t) => t.hours !== null && t.hourly_rate !== null,
+  )
   const [hourly, setHourly] = useState<Record<string, boolean>>(() =>
-    Object.fromEntries(hourlyTasks.map((t) => [t.task_id, items.some((i) => i.kind === 'hourly' && i.task_id === t.task_id)])),
+    Object.fromEntries(
+      hourlyTasks.map((t) => [
+        t.task_id,
+        items.some((i) => i.kind === 'hourly' && i.task_id === t.task_id),
+      ]),
+    ),
   )
   const [extras, setExtras] = useState<ExtraRow[]>(() =>
-    items.filter((i) => i.kind === 'extra' || i.kind === 'task').map((i) => ({ description: i.description, detail: i.detail ?? '', amount: i.unit_price })),
+    items
+      .filter((i) => i.kind === 'extra' || i.kind === 'task')
+      .map((i) => ({
+        description: i.description,
+        detail: i.detail ?? '',
+        amount: i.unit_price,
+      })),
   )
-  const [showTax, setShowTax] = useState(Boolean(initial && (initial.tax_amount !== '0' || initial.withholding_amount !== '0')))
-  const [tax, setTax] = useState(initial?.tax_amount === '0' ? '' : (initial?.tax_amount ?? ''))
-  const [withholding, setWithholding] = useState(initial?.withholding_amount === '0' ? '' : (initial?.withholding_amount ?? ''))
-  const [adjustmentNote, setAdjustmentNote] = useState(initial?.adjustment_note ?? '')
+  const [showTax, setShowTax] = useState(
+    Boolean(
+      initial &&
+        (initial.tax_amount !== '0' || initial.withholding_amount !== '0'),
+    ),
+  )
+  const [tax, setTax] = useState(
+    initial?.tax_amount === '0' ? '' : (initial?.tax_amount ?? ''),
+  )
+  const [withholding, setWithholding] = useState(
+    initial?.withholding_amount === '0'
+      ? ''
+      : (initial?.withholding_amount ?? ''),
+  )
+  const [adjustmentNote, setAdjustmentNote] = useState(
+    initial?.adjustment_note ?? '',
+  )
 
-  const setStage = (id: string, patch: Partial<StagePick>) => setStages((s) => ({ ...s, [id]: { ...s[id]!, ...patch } }))
-  const setExtra = (i: number, patch: Partial<ExtraRow>) => setExtras((rows) => rows.map((r, j) => (j === i ? { ...r, ...patch } : r)))
+  const setStage = (id: string, patch: Partial<StagePick>) =>
+    setStages((s) => ({ ...s, [id]: { ...s[id]!, ...patch } }))
+  const setExtra = (i: number, patch: Partial<ExtraRow>) =>
+    setExtras((rows) => rows.map((r, j) => (j === i ? { ...r, ...patch } : r)))
 
-  const pickedStages = candidates.payment_terms.filter((t) => stages[t.payment_term_id]?.checked)
+  const pickedStages = candidates.payment_terms.filter(
+    (t) => stages[t.payment_term_id]?.checked,
+  )
   const pickedHourly = hourlyTasks.filter((t) => hourly[t.task_id])
   const validExtras = extras.filter((r) => r.description.trim() && r.amount)
 
   const suggestedTitle = (() => {
     const parts: string[] = []
-    if (pickedStages.length > 0) parts.push(pickedStages.map((t) => t.label).join(' + '))
+    if (pickedStages.length > 0)
+      parts.push(pickedStages.map((t) => t.label).join(' + '))
     if (pickedHourly.length > 0) parts.push(`시간제 ${pickedHourly.length}건`)
     if (validExtras.length > 0) parts.push(`추가 작업 ${validExtras.length}건`)
     const core = parts.join(' · ')
-    return (core ? (projectName ? `${projectName} ${core}` : core) : '').slice(0, 100)
+    return (core ? (projectName ? `${projectName} ${core}` : core) : '').slice(
+      0,
+      100,
+    )
   })()
   const title = manualTitle ?? suggestedTitle
   const titleAuto = manualTitle === null
 
   const subtotal =
-    pickedStages.reduce((s, t) => s + big(stages[t.payment_term_id]!.amount), 0n) +
-    pickedHourly.reduce((s, t) => s + hourlyAmount(t.hours!, t.hourly_rate!), 0n) +
+    pickedStages.reduce(
+      (s, t) => s + big(stages[t.payment_term_id]!.amount),
+      0n,
+    ) +
+    pickedHourly.reduce(
+      (s, t) => s + hourlyAmount(t.hours!, t.hourly_rate!),
+      0n,
+    ) +
     validExtras.reduce((s, r) => s + big(r.amount), 0n)
   const total = subtotal + big(tax) - big(withholding)
 
-  const overLimit = pickedStages.filter((t) => big(stages[t.payment_term_id]!.amount) > big(t.remaining_amount))
-  const itemCount = pickedStages.length + pickedHourly.length + validExtras.length
-  const valid = title.trim() !== '' && itemCount > 0 && total >= 0n && overLimit.length === 0 && pickedStages.every((t) => stages[t.payment_term_id]!.amount)
+  const overLimit = pickedStages.filter(
+    (t) => big(stages[t.payment_term_id]!.amount) > big(t.remaining_amount),
+  )
+  const itemCount =
+    pickedStages.length + pickedHourly.length + validExtras.length
+  const valid =
+    title.trim() !== '' &&
+    itemCount > 0 &&
+    total >= 0n &&
+    overLimit.length === 0 &&
+    pickedStages.every((t) => stages[t.payment_term_id]!.amount)
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault()
@@ -116,6 +192,7 @@ function InvoiceForm({
           payment_term_id: t.payment_term_id,
           basis_note: pick.basisNote.trim() || null,
           basis_confirmed: pick.basisConfirmed,
+          approval_version_id: pick.approvalVersion || null,
         }
       }),
       ...pickedHourly.map((t) => ({
@@ -142,26 +219,49 @@ function InvoiceForm({
         project_id: projectId,
         title: title.trim(),
         due_date: dueDate || null,
-        items: body,
+        items: body.map((item) => ({
+          ...item,
+          approval_version_id:
+            item.approval_version_id || globalApproval || null,
+        })),
         tax_amount: tax || '0',
         withholding_amount: withholding || '0',
         adjustment_note: adjustmentNote.trim() || null,
         ...(initial ? { version: initial.version } : {}),
       },
-      { onSuccess: (inv) => navigate(`/invoices/${inv.id}`, { replace: true }) },
+      {
+        onSuccess: (inv) => navigate(`/invoices/${inv.id}`, { replace: true }),
+      },
     )
   }
 
   return (
     <form onSubmit={onSubmit} noValidate className="contract-layout">
       <div className="stack">
+        <section className="card">
+          <h2 className="card-title">고객 승인 근거</h2>
+          <SelectField
+            label="이 청구에 연결할 결과물 승인 (선택)"
+            value={globalApproval}
+            options={[
+              { value: '', label: '수동 근거 확인' },
+              ...approvals.map((d) => ({
+                value: d.id,
+                label: `${d.title} v${d.seq} · 승인됨`,
+              })),
+            ]}
+            onChange={(e) => setGlobalApproval(e.target.value)}
+            hint="지급 조건을 확인한 뒤 연결하세요. 선택한 승인자·시각·버전은 발행 기록에 보존됩니다. 자동 발행하지 않습니다."
+          />
+        </section>
         <section className="card" aria-labelledby="stage-title">
           <h2 id="stage-title" className="card-title">
             계약 지급 단계
           </h2>
           {candidates.payment_terms.length === 0 ? (
             <p className="muted" style={{ margin: 0 }}>
-              계약서로 만든 프로젝트가 아니라 지급 단계가 없어요. 아래 추가 항목으로 청구하거나, 계약서에서 프로젝트를 만들어 주세요.
+              계약서로 만든 프로젝트가 아니라 지급 단계가 없어요. 아래 추가
+              항목으로 청구하거나, 계약서에서 프로젝트를 만들어 주세요.
             </p>
           ) : (
             <ul className="pick-list">
@@ -169,30 +269,70 @@ function InvoiceForm({
                 const pick = stages[t.payment_term_id]!
                 const done = t.remaining_amount === '0'
                 return (
-                  <li key={t.payment_term_id} className={pick.checked ? 'is-picked' : undefined}>
+                  <li
+                    key={t.payment_term_id}
+                    className={pick.checked ? 'is-picked' : undefined}
+                  >
                     <label className="checkbox pick-head">
                       <input
                         type="checkbox"
                         checked={pick.checked}
                         disabled={done && !pick.checked}
-                        onChange={(e) => setStage(t.payment_term_id, { checked: e.target.checked })}
+                        onChange={(e) =>
+                          setStage(t.payment_term_id, {
+                            checked: e.target.checked,
+                          })
+                        }
                       />
                       <strong>{t.label}</strong>
                       <span className="muted">
-                        {formatWon(t.amount)} · 청구됨 {formatWon(t.billed_amount)} · 남은 금액 {formatWon(t.remaining_amount)}
+                        {formatWon(t.amount)} · 청구됨{' '}
+                        {formatWon(t.billed_amount)} · 남은 금액{' '}
+                        {formatWon(t.remaining_amount)}
                       </span>
-                      {done && <span className="badge badge-green">청구 완료</span>}
+                      {done && (
+                        <span className="badge badge-green">청구 완료</span>
+                      )}
                     </label>
                     {t.drafted_amount !== '0' && !initial && (
-                      <p className="field-hint">다른 초안에 {formatWon(t.drafted_amount)}이 잡혀 있어요. 발행할 때 한도를 다시 확인해요.</p>
+                      <p className="field-hint">
+                        다른 초안에 {formatWon(t.drafted_amount)}이 잡혀 있어요.
+                        발행할 때 한도를 다시 확인해요.
+                      </p>
                     )}
                     {pick.checked && (
                       <div className="pick-body">
                         <AmountField
                           label="청구 금액"
                           value={pick.amount}
-                          onChange={(v) => setStage(t.payment_term_id, { amount: v })}
-                          error={big(pick.amount) > big(t.remaining_amount) ? `남은 금액 ${formatWon(t.remaining_amount)}을 넘을 수 없어요.` : undefined}
+                          onChange={(v) =>
+                            setStage(t.payment_term_id, { amount: v })
+                          }
+                          error={
+                            big(pick.amount) > big(t.remaining_amount)
+                              ? `남은 금액 ${formatWon(t.remaining_amount)}을 넘을 수 없어요.`
+                              : undefined
+                          }
+                        />
+                        <SelectField
+                          label="승인 기록 연결 (선택)"
+                          value={pick.approvalVersion}
+                          options={[
+                            ['', '수동 근거 확인'],
+                            ...approvals.map((d) => [
+                              d.id,
+                              `${d.title} v${d.seq} · 승인됨`,
+                            ]),
+                          ].map(([value, label]) => ({
+                            value: value!,
+                            label: label!,
+                          }))}
+                          onChange={(e) =>
+                            setStage(t.payment_term_id, {
+                              approvalVersion: e.target.value,
+                            })
+                          }
+                          hint="선택한 버전의 승인자·시각을 청구 근거로 보존합니다. 지급 조건 충족 여부는 별도로 확인하세요."
                         />
                         {t.requirement && (
                           <div className="requirement">
@@ -203,13 +343,21 @@ function InvoiceForm({
                               label="확인한 내용"
                               value={pick.basisNote}
                               maxLength={200}
-                              onChange={(e) => setStage(t.payment_term_id, { basisNote: e.target.value })}
+                              onChange={(e) =>
+                                setStage(t.payment_term_id, {
+                                  basisNote: e.target.value,
+                                })
+                              }
                             />
                             <label className="checkbox">
                               <input
                                 type="checkbox"
                                 checked={pick.basisConfirmed}
-                                onChange={(e) => setStage(t.payment_term_id, { basisConfirmed: e.target.checked })}
+                                onChange={(e) =>
+                                  setStage(t.payment_term_id, {
+                                    basisConfirmed: e.target.checked,
+                                  })
+                                }
                               />
                               지급 요건을 충족했음을 확인했습니다 (발행 전 필수)
                             </label>
@@ -233,11 +381,24 @@ function InvoiceForm({
               {hourlyTasks.map((t) => (
                 <li key={t.task_id}>
                   <label className="checkbox pick-head">
-                    <input type="checkbox" checked={hourly[t.task_id] ?? false} onChange={(e) => setHourly((h) => ({ ...h, [t.task_id]: e.target.checked }))} />
+                    <input
+                      type="checkbox"
+                      checked={hourly[t.task_id] ?? false}
+                      onChange={(e) =>
+                        setHourly((h) => ({
+                          ...h,
+                          [t.task_id]: e.target.checked,
+                        }))
+                      }
+                    />
                     <strong>{t.title}</strong>
                     <span className="muted">
-                      {t.hours}시간 × {formatWon(t.hourly_rate)} = {formatWon(hourlyAmount(t.hours!, t.hourly_rate!).toString())}
-                      {t.billed_amount !== '0' && ` · 청구됨 ${formatWon(t.billed_amount)}`}
+                      {t.hours}시간 × {formatWon(t.hourly_rate)} ={' '}
+                      {formatWon(
+                        hourlyAmount(t.hours!, t.hourly_rate!).toString(),
+                      )}
+                      {t.billed_amount !== '0' &&
+                        ` · 청구됨 ${formatWon(t.billed_amount)}`}
                     </span>
                   </label>
                 </li>
@@ -251,7 +412,16 @@ function InvoiceForm({
             <h2 id="extra-title" className="card-title">
               추가 작업
             </h2>
-            <button type="button" className="link-button" onClick={() => setExtras((r) => [...r, { description: '', detail: '', amount: '' }])}>
+            <button
+              type="button"
+              className="link-button"
+              onClick={() =>
+                setExtras((r) => [
+                  ...r,
+                  { description: '', detail: '', amount: '' },
+                ])
+              }
+            >
               + 항목 추가
             </button>
           </div>
@@ -263,16 +433,39 @@ function InvoiceForm({
             <ul className="edit-rows">
               {extras.map((r, i) => (
                 <li key={i}>
-                  <input className="input" aria-label="항목" placeholder="항목 (예: 배너 2종 추가)" value={r.description} maxLength={200} onChange={(e) => setExtra(i, { description: e.target.value })} />
+                  <input
+                    className="input"
+                    aria-label="항목"
+                    placeholder="항목 (예: 배너 2종 추가)"
+                    value={r.description}
+                    maxLength={200}
+                    onChange={(e) =>
+                      setExtra(i, { description: e.target.value })
+                    }
+                  />
                   <input
                     className="input input-sm"
                     aria-label="금액"
                     inputMode="numeric"
                     placeholder="금액"
                     value={r.amount ? groupDigits(r.amount) : ''}
-                    onChange={(e) => setExtra(i, { amount: e.target.value.replace(/\D/g, '').replace(/^0+(?=\d)/, '').slice(0, 14) })}
+                    onChange={(e) =>
+                      setExtra(i, {
+                        amount: e.target.value
+                          .replace(/\D/g, '')
+                          .replace(/^0+(?=\d)/, '')
+                          .slice(0, 14),
+                      })
+                    }
                   />
-                  <button type="button" className="icon-button" aria-label="항목 삭제" onClick={() => setExtras((rows) => rows.filter((_, j) => j !== i))}>
+                  <button
+                    type="button"
+                    className="icon-button"
+                    aria-label="항목 삭제"
+                    onClick={() =>
+                      setExtras((rows) => rows.filter((_, j) => j !== i))
+                    }
+                  >
                     ×
                   </button>
                 </li>
@@ -294,17 +487,41 @@ function InvoiceForm({
               value={title}
               onChange={(e) => setManualTitle(e.target.value)}
               maxLength={100}
-              hint={titleAuto && suggestedTitle ? '고른 항목으로 자동으로 지었어요. 직접 바꿀 수 있어요.' : undefined}
+              hint={
+                titleAuto && suggestedTitle
+                  ? '고른 항목으로 자동으로 지었어요. 직접 바꿀 수 있어요.'
+                  : undefined
+              }
             />
-            <TextField label="지급 기한" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} hint="발행할 때 필요해요." />
+            <TextField
+              label="지급 기한"
+              type="date"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+              hint="발행할 때 필요해요."
+            />
             {showTax ? (
               <>
                 <AmountField label="세액" value={tax} onChange={setTax} />
-                <AmountField label="원천징수" value={withholding} onChange={setWithholding} />
-                <TextField label="조정 근거" placeholder="예: 사업소득 3.3% 원천징수" value={adjustmentNote} maxLength={300} onChange={(e) => setAdjustmentNote(e.target.value)} />
+                <AmountField
+                  label="원천징수"
+                  value={withholding}
+                  onChange={setWithholding}
+                />
+                <TextField
+                  label="조정 근거"
+                  placeholder="예: 사업소득 3.3% 원천징수"
+                  value={adjustmentNote}
+                  maxLength={300}
+                  onChange={(e) => setAdjustmentNote(e.target.value)}
+                />
               </>
             ) : (
-              <button type="button" className="link-button" onClick={() => setShowTax(true)}>
+              <button
+                type="button"
+                className="link-button"
+                onClick={() => setShowTax(true)}
+              >
                 + 세액·원천징수 입력
               </button>
             )}
@@ -326,17 +543,28 @@ function InvoiceForm({
             </div>
           </dl>
           <p className="field-hint" style={{ margin: '0 0 12px' }}>
-            저장할 때 서버가 금액을 다시 계산해요. 초안은 미수액에 포함되지 않아요.
+            저장할 때 서버가 금액을 다시 계산해요. 초안은 미수액에 포함되지
+            않아요.
           </p>
           {save.isError && (
-            <div className="alert alert-error" role="alert" style={{ marginBottom: 12 }}>
+            <div
+              className="alert alert-error"
+              role="alert"
+              style={{ marginBottom: 12 }}
+            >
               {messageOf(save.error)}
             </div>
           )}
-          <button type="submit" className="btn btn-primary btn-block" disabled={!valid || save.isPending}>
+          <button
+            type="submit"
+            className="btn btn-primary btn-block"
+            disabled={!valid || save.isPending}
+          >
             {save.isPending ? '저장 중…' : '초안 저장'}
           </button>
-          {itemCount === 0 && <p className="field-hint">청구할 항목을 하나 이상 골라 주세요.</p>}
+          {itemCount === 0 && (
+            <p className="field-hint">청구할 항목을 하나 이상 골라 주세요.</p>
+          )}
         </section>
       </aside>
     </form>
@@ -350,12 +578,20 @@ export function InvoiceFormPage() {
   const existing = useInvoice(invoiceId ?? '')
   const projects = useProjects('all')
   const editing = Boolean(invoiceId)
-  const projectId = editing ? (existing.data?.project_id ?? null) : searchParams.get('project')
+  const projectId = editing
+    ? (existing.data?.project_id ?? null)
+    : searchParams.get('project')
   const candidates = useBillingCandidates(projectId)
   const projectName = projects.data?.items.find((p) => p.id === projectId)?.name
 
   if (editing && existing.isPending) return <Loading />
-  if (editing && existing.isError) return <LoadError error={existing.error} onRetry={() => void existing.refetch()} />
+  if (editing && existing.isError)
+    return (
+      <LoadError
+        error={existing.error}
+        onRetry={() => void existing.refetch()}
+      />
+    )
   if (editing && existing.data && existing.data.status !== 'draft') {
     return (
       <div className="center-block">
@@ -376,10 +612,15 @@ export function InvoiceFormPage() {
       <div className="page-head">
         <div>
           <p className="page-eyebrow">
-            <Link to="/invoices">인보이스</Link> / {editing ? '초안 수정' : '작성'}
+            <Link to="/invoices">인보이스</Link> /{' '}
+            {editing ? '초안 수정' : '작성'}
           </p>
-          <h1 className="page-title">{editing ? '인보이스 초안 수정' : '인보이스 작성'}</h1>
-          <p className="page-desc">계약 지급 조건과 완료 작업을 대조해 청구 항목을 고르세요.</p>
+          <h1 className="page-title">
+            {editing ? '인보이스 초안 수정' : '인보이스 작성'}
+          </h1>
+          <p className="page-desc">
+            계약 지급 조건과 완료 작업을 대조해 청구 항목을 고르세요.
+          </p>
         </div>
       </div>
 
@@ -396,9 +637,17 @@ export function InvoiceFormPage() {
           ) : (
             <SelectField
               label="청구할 프로젝트"
-              options={[{ value: '', label: '프로젝트를 선택하세요' }, ...projectOptions]}
+              options={[
+                { value: '', label: '프로젝트를 선택하세요' },
+                ...projectOptions,
+              ]}
               value={projectId ?? ''}
-              onChange={(e) => setSearchParams(e.target.value ? { project: e.target.value } : {}, { replace: true })}
+              onChange={(e) =>
+                setSearchParams(
+                  e.target.value ? { project: e.target.value } : {},
+                  { replace: true },
+                )
+              }
             />
           )}
         </section>
@@ -408,7 +657,10 @@ export function InvoiceFormPage() {
         (candidates.isPending ? (
           <Loading />
         ) : candidates.isError ? (
-          <LoadError error={candidates.error} onRetry={() => void candidates.refetch()} />
+          <LoadError
+            error={candidates.error}
+            onRetry={() => void candidates.refetch()}
+          />
         ) : (
           <InvoiceForm
             key={projectId}

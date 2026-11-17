@@ -71,6 +71,7 @@ def register(body: RegisterIn, request: Request, response: Response, db: Session
         password_hash=hash_password(body.password),
         name=body.name.strip(),
         job_type=body.job_type,
+        preferred_mode=body.preferred_mode,
         issuer_name=body.name.strip(),
         issuer_contact=email,
         terms_agreed_at=datetime.now(UTC),

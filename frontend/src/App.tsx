@@ -1,6 +1,8 @@
-import { Navigate, Route, Routes } from 'react-router'
+import { ClientServicePage, ClientInvitePage, ClientHome, ProfileEditor } from './pages/ClientServicePage'
+import { FreelancerInquiriesPage } from './pages/InquiriesView'
+import { Route, Routes } from 'react-router'
 
-import { GuestOnly, RequireAuth } from './components/RouteGuards'
+import { EntryPage, GuestOnly, RequireAuth } from './components/RouteGuards'
 import { ClientSharePage } from './pages/ClientSharePage'
 import { PortfolioPage } from './pages/PortfolioPage'
 import { PublicPortfolioPage } from './pages/PublicPortfolioPage'
@@ -24,8 +26,6 @@ import { SettingsPage } from './pages/SettingsPage'
 export function App() {
   return (
     <Routes>
-      <Route index element={<Navigate to="/dashboard" replace />} />
-
       <Route path="share/:token" element={<ClientSharePage />} />
       <Route path="p/:slug" element={<PublicPortfolioPage />} />
 
@@ -35,6 +35,13 @@ export function App() {
       </Route>
 
       <Route element={<RequireAuth />}>
+        <Route index element={<EntryPage />} />
+        <Route path="client" element={<ClientHome />} />
+        <Route path="client/invite" element={<ClientInvitePage />} />
+        <Route path="client/:section" element={<ClientServicePage />} />
+        <Route path="client/projects/:projectId" element={<ClientServicePage />} />
+        <Route path="client-profile" element={<ProfileEditor />} />
+        <Route path="client-requests" element={<FreelancerInquiriesPage />} />
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="contracts" element={<ContractsPage />} />
         <Route path="contracts/:contractId" element={<ContractDetailPage />} />

@@ -19,6 +19,9 @@ from app.core.errors import AppError, conflict, not_found
 from app.db.models import (
     BillingAllocation,
     Client,
+    ClientDelivery,
+    ClientDeliveryVersion,
+    ClientReviewEvent,
     Contract,
     ContractVersion,
     Invoice,
@@ -202,6 +205,8 @@ def build_items(db: Session, project: Project, body: InvoiceIn) -> tuple[list[In
     now = now_utc()
     items: list[InvoiceItem] = []
     for position, item in enumerate(body.items):
+        if item.approval_version_id:
+            approval_evidence(db, project.id, item.approval_version_id, current=True)
         quantity = item.quantity
         unit_price = item.unit_price
         allocations: list[BillingAllocation] = []
@@ -240,6 +245,7 @@ def build_items(db: Session, project: Project, body: InvoiceIn) -> tuple[list[In
                 amount=amount,
                 basis_note=(item.basis_note or "").strip() or None,
                 basis_confirmed_at=now if item.basis_confirmed else None,
+                approval_version_id=item.approval_version_id,
                 allocations=allocations,
             )
         )
@@ -261,6 +267,8 @@ def check_issuable(db: Session, invoice: Invoice, project: Project) -> None:
 
     requested: dict[UUID, Decimal] = {}
     for item in invoice.items:
+        if item.approval_version_id:
+            approval_evidence(db, project.id, item.approval_version_id, current=True)
         for alloc in item.allocations:
             if alloc.payment_term_id:
                 requested[alloc.payment_term_id] = (
@@ -342,6 +350,9 @@ def build_snapshot(db: Session, invoice: Invoice, project: Project, user: User) 
                 "quantity": str(i.quantity),
                 "unit_price": str(i.unit_price),
                 "amount": str(i.amount),
+                "approval_evidence": approval_evidence(db, project.id, i.approval_version_id)
+                if i.approval_version_id
+                else None,
                 "basis_note": i.basis_note,
                 "basis_confirmed_at": i.basis_confirmed_at.isoformat() if i.basis_confirmed_at else None,
                 "payment_term": (
@@ -448,6 +459,7 @@ def build_detail(db: Session, owner_id: UUID, invoice_id: UUID) -> InvoiceDetail
                 task_id=next((a.task_id for a in i.allocations if a.task_id), None),
                 basis_note=i.basis_note,
                 basis_confirmed_at=i.basis_confirmed_at,
+                approval_version_id=i.approval_version_id,
             )
             for i in invoice.items
         ],
@@ -458,4 +470,38 @@ def build_detail(db: Session, owner_id: UUID, invoice_id: UUID) -> InvoiceDetail
         cancelled_at=invoice.cancelled_at,
         cancel_reason=invoice.cancel_reason,
         version=invoice.updated_at,
+    )
+
+
+def approval_evidence(
+    db: Session, project_id: UUID, version_id: UUID, current: bool = False
+) -> dict[str, Any]:
+    row = db.execute(
+        select(ClientDeliveryVersion, ClientDelivery, ClientReviewEvent)
+        .join(ClientDelivery, ClientDelivery.id == ClientDeliveryVersion.delivery_id)
+        .join(ClientReviewEvent, ClientReviewEvent.version_id == ClientDeliveryVersion.id)
+        .where(
+            ClientDeliveryVersion.id == version_id,
+            ClientDelivery.project_id == project_id,
+            ClientReviewEvent.kind == "approved",
+        )
+    ).first()
+    if row is None:
+        raise AppError(422, "approval_required", "이 프로젝트의 승인된 결과물 버전을 선택하세요")
+    version, delivery, event = row
+    if current:
+        latest = db.scalar(
+            select(func.max(ClientDeliveryVersion.seq)).where(
+                ClientDeliveryVersion.delivery_id == delivery.id
+            )
+        )
+        if version.seq != latest:
+            raise AppError(422, "approval_outdated", "새 버전이 제출되었습니다. 최신 승인 기록을 확인하세요")
+    return dict(
+        version_id=str(version.id),
+        title=delivery.title,
+        seq=version.seq,
+        actor=event.actor_name,
+        workspace=event.workspace_name,
+        approved_at=event.created_at.isoformat(),
     )
