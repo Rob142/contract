@@ -71,6 +71,7 @@ function ProjectFormDialog({ title, initial, project, onClose }: ProjectFormProp
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) => setForm((f) => ({ ...f, [key]: value }))
 
   const clientOptions = [
+    { value: '', label: '기존 거래처 선택 또는 새 거래처 입력' },
     ...(clients.data ?? []).map((c) => ({ value: c.id, label: c.name })),
     { value: NEW_CLIENT, label: '+ 새 거래처 입력' },
   ]
@@ -141,7 +142,8 @@ function ProjectFormDialog({ title, initial, project, onClose }: ProjectFormProp
           autoFocus
         />
         <SelectField
-          label="거래처"
+          label="거래처 선택"
+          hint={clients.isError ? '거래처 목록을 불러오지 못했어요. 잠시 후 다시 열어 주세요.' : clients.isPending ? '기존 거래처를 불러오는 중이에요.' : clients.data?.length ? '이전에 등록한 거래처를 선택하거나, 새 거래처 입력을 선택하세요.' : '등록한 거래처가 없어요. 새 거래처 입력을 선택하세요.'}
           options={project ? clientOptions.filter((o) => o.value !== NEW_CLIENT) : clientOptions}
           value={form.clientChoice}
           onChange={(e) => set('clientChoice', e.target.value)}
@@ -159,6 +161,7 @@ function ProjectFormDialog({ title, initial, project, onClose }: ProjectFormProp
             value={form.newClientName}
             onChange={(e) => set('newClientName', e.target.value)}
             maxLength={100}
+            hint="저장한 거래처는 다음 프로젝트에서 다시 선택할 수 있어요."
             error={errors.client}
             fieldClassName="span-2"
           />
@@ -211,23 +214,20 @@ function ProjectFormDialog({ title, initial, project, onClose }: ProjectFormProp
 }
 
 export function NewProjectDialog({ defaultJobType, onClose }: { defaultJobType: JobType; onClose: () => void }) {
-  const clients = useClients()
-  const firstClient = clients.data?.[0]?.id
   return (
     <ProjectFormDialog
-      key={clients.isSuccess ? 'ready' : 'loading'}
       title="새 프로젝트"
       onClose={onClose}
       initial={{
         name: '',
-        clientChoice: firstClient ?? NEW_CLIENT,
+        clientChoice: '',
         newClientName: '',
         jobType: defaultJobType,
         startDate: '',
         dueDate: '',
         amount: '',
         status: 'active',
-        useTemplate: true,
+        useTemplate: false,
         includedRevisions: '',
       }}
     />

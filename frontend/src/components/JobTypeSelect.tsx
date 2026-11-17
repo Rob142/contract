@@ -17,7 +17,9 @@ export function JobTypeSelect({ contract, label = '이 계약서의 직업군' }
       disabled={update.isPending || contract.status === 'analyzing'}
       onChange={(e) => update.mutate({ job_type: e.target.value as JobType })}
       error={update.isError ? messageOf(update.error) : undefined}
-      hint="직업군에 맞는 규칙(예: 디자인은 수정 횟수·저작권)으로 검토해요."
+      hint={['dev', 'design', 'video', 'marketing'].includes(contract.job_type)
+        ? '직업군별 규칙과 공통 계약 규칙으로 검토해요.'
+        : '현재 이 직군은 대금·납기·권리 등 공통 계약 규칙으로 검토해요. 직군별 추가 규칙은 아직 제공하지 않아요.'}
     />
   )
 }

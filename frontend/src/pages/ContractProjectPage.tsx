@@ -42,7 +42,7 @@ function ProjectDraftForm({ contractId, draft, initialProjectId }: { contractId:
   const [idempotencyKey] = useState(newIdempotencyKey)
 
   const [name, setName] = useState(draft.name)
-  const [clientChoice, setClientChoice] = useState(draft.client_id ?? NEW_CLIENT)
+  const [clientChoice, setClientChoice] = useState(draft.client_id ?? '')
   const [newClientName, setNewClientName] = useState('')
   const [jobType, setJobType] = useState<JobType>(draft.job_type)
   const [startDate, setStartDate] = useState(draft.start_date ?? '')
@@ -56,7 +56,7 @@ function ProjectDraftForm({ contractId, draft, initialProjectId }: { contractId:
 
   const termsTotal = terms.reduce((sum, t) => sum + BigInt(t.amount || '0'), 0n)
   const totalMatches = termsTotal === BigInt(amount || '0')
-  const clientOk = linking || clientChoice !== NEW_CLIENT || newClientName.trim() !== ''
+  const clientOk = linking || (clientChoice === NEW_CLIENT ? newClientName.trim() !== '' : clientChoice !== '')
 
   // 프로젝트 화면에서 넘어온 경우: 목록을 받은 뒤 한 번만 그 프로젝트 값으로 채운다
   const [prefilled, setPrefilled] = useState(!initialProjectId)
@@ -136,7 +136,7 @@ function ProjectDraftForm({ contractId, draft, initialProjectId }: { contractId:
     )
   }
 
-  const clientOptions = [...(clients.data ?? []).map((c) => ({ value: c.id, label: c.name })), { value: NEW_CLIENT, label: '+ 새 거래처 입력' }]
+  const clientOptions = [{ value: '', label: '기존 거래처 선택 또는 새 거래처 입력' }, ...(clients.data ?? []).map((c) => ({ value: c.id, label: c.name })), { value: NEW_CLIENT, label: '+ 새 거래처 입력' }]
 
   return (
     <form onSubmit={onSubmit} noValidate>
@@ -234,7 +234,7 @@ function ProjectDraftForm({ contractId, draft, initialProjectId }: { contractId:
               {linking ? (
                 <TextField label="거래처" value={target!.client.name} readOnly disabled />
               ) : (
-                <SelectField label="거래처" options={clientOptions} value={clientChoice} onChange={(e) => setClientChoice(e.target.value)} />
+                <SelectField label="거래처 선택" hint={clients.isError ? '거래처 목록을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.' : '등록한 거래처를 선택하거나 새 거래처 입력을 선택하세요. 새 거래처는 저장 후 다시 사용할 수 있어요.'} options={clientOptions} value={clientChoice} onChange={(e) => setClientChoice(e.target.value)} />
               )}
               <SelectField label="직업군" options={JOB_OPTIONS} value={jobType} onChange={(e) => setJobType(e.target.value as JobType)} />
               {!linking && clientChoice === NEW_CLIENT && (
@@ -307,6 +307,10 @@ function ProjectDraftForm({ contractId, draft, initialProjectId }: { contractId:
               지급 조건
             </h2>
             {draft.payment_terms_text && <p className="muted small">계약서: {draft.payment_terms_text}</p>}
+            <datalist id="payment-requirements">
+              <option value="계약 체결 후" /><option value="착수 전" /><option value="중간 결과물 승인 후" /><option value="최종 검수 완료 후" /><option value="납품 후 7일 이내" /><option value="납품 후 30일 이내" />
+            </datalist>
+            <p className="field-hint">지급 요건은 목록에서 고르거나 직접 입력할 수 있어요.</p>
             <ul className="term-rows">
               {terms.map((t, i) => (
                 <li key={i}>
@@ -328,6 +332,7 @@ function ProjectDraftForm({ contractId, draft, initialProjectId }: { contractId:
                   <AmountField label="금액" value={t.amount} onChange={(v) => setTerm(i, { amount: v })} />
                   <TextField
                     label="지급 요건"
+                    list="payment-requirements"
                     placeholder="예: 검수 완료 후"
                     value={t.requirement}
                     maxLength={200}

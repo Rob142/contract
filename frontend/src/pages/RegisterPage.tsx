@@ -28,7 +28,9 @@ export function RegisterPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [jobType, setJobType] = useState<JobType>('design')
-  const [agree, setAgree] = useState(false)
+  const [agreeTerms, setAgreeTerms] = useState(false)
+  const [agreePrivacy, setAgreePrivacy] = useState(false)
+  const agree = agreeTerms && agreePrivacy
   const [touched, setTouched] = useState(false)
 
   const clientErrors: Record<string, string> = {}
@@ -98,17 +100,22 @@ export function RegisterPage() {
         hint="계약서를 검토할 때 기본으로 적용할 직업군이에요. 나중에 바꿀 수 있어요."
       />
 
-      <div className="field">
+      <fieldset className="consent-group">
+        <legend>필수 동의</legend>
         <label className="checkbox">
-          <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} />
-          이용약관 및 개인정보 처리방침에 동의합니다
+          <input name="agree_terms" type="checkbox" required checked={agreeTerms} onChange={(e) => setAgreeTerms(e.target.checked)} aria-invalid={touched && !agreeTerms || undefined} />
+          [필수] 이용약관 동의
         </label>
-        {touched && !agree && (
-          <span className="field-error" role="alert">
-            약관에 동의해야 가입할 수 있어요.
-          </span>
-        )}
-      </div>
+        <label className="checkbox">
+          <input name="agree_privacy" type="checkbox" required checked={agreePrivacy} onChange={(e) => setAgreePrivacy(e.target.checked)} aria-invalid={touched && !agreePrivacy || undefined} />
+          [필수] 개인정보 수집·이용 동의
+        </label>
+        {touched && !agree && <p className="field-error" role="alert">필수 항목 두 가지에 각각 동의해 주세요.</p>}
+      </fieldset>
+      <fieldset className="consent-group">
+        <legend>선택 동의</legend>
+        <p className="field-hint">현재 요청하는 선택 동의는 없어요. 광고성 정보 수신 동의 없이 가입할 수 있어요.</p>
+      </fieldset>
 
       {formError && (
         <div className="alert alert-error" role="alert">

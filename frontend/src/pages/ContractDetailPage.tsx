@@ -26,6 +26,7 @@ import { useAnalysis } from '../api/analysis'
 import { useProject } from '../api/projects'
 import { forgetLinkTarget, recallLinkTarget, rememberLinkTarget } from '../lib/linkTarget'
 import { TextField } from '../components/Field'
+import { PaymentTermsField } from '../components/PaymentTermsField'
 import { PdfViewer, type Highlight } from '../components/PdfViewer'
 import { FilterTabs, LoadError, Loading } from '../components/ui'
 import { FAILURE_REASONS, failureMessage, FIELD_LABELS, JOB_STAGE_LABELS, STATUS_BADGE } from '../lib/contractStatus'
@@ -245,12 +246,10 @@ function ReviewCard({ contract, onShowEvidence }: { contract: ContractDetail; on
           {hint('final_due_date')}
         </p>
 
-        <TextField
-          label="지급 조건"
-          placeholder="예: 계약 체결 후 선금 50% · 검수 완료 후 잔금 50%"
+        <PaymentTermsField
           value={values.payment_terms}
           maxLength={200}
-          onChange={(e) => set('payment_terms', e.target.value)}
+          onChange={(value) => set('payment_terms', value)}
         />
         <p className={fieldByKey.payment_terms?.extracted_value ? 'field-hint review-hint' : 'field-hint review-hint is-missing'}>
           {hint('payment_terms')}

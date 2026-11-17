@@ -39,7 +39,18 @@ def test_template_creates_steps_by_job_type(client: TestClient) -> None:
     assert {t["source"] for t in tasks} == {"template"}
     assert make_project(client, use_template=False)["total_tasks"] == 0
     templates = {t["job_type"]: t["steps"] for t in client.get(f"{API}/job-templates").json()}
-    assert set(templates) == {"dev", "design", "video", "marketing"}
+    assert set(templates) == {
+        "dev",
+        "design",
+        "video",
+        "marketing",
+        "writing",
+        "translation",
+        "education",
+        "consulting",
+        "photography",
+        "other",
+    }
 
 
 def test_share_link_lifecycle(client: TestClient) -> None:

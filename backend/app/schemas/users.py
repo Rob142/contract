@@ -3,7 +3,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
-JobType = Literal["dev", "design", "video", "marketing"]
+from app.schemas.common import JobType
+
 LlmMode = Literal["ask", "commercial", "local"]
 
 

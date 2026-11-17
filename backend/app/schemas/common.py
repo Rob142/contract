@@ -3,7 +3,18 @@ from typing import Annotated, Literal
 
 from pydantic import Field, PlainSerializer
 
-JobType = Literal["dev", "design", "video", "marketing"]
+JobType = Literal[
+    "dev",
+    "design",
+    "video",
+    "marketing",
+    "writing",
+    "translation",
+    "education",
+    "consulting",
+    "photography",
+    "other",
+]
 
 # 원 단위 정수 금액. 입력은 숫자·문자열 모두 받고, 응답은 항상 십진 문자열이다 (부동소수점 금지)
 Won = Annotated[

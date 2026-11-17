@@ -93,7 +93,18 @@ SYSTEM_TEMPLATE = """당신은 프리랜서의 계약서 검토를 돕는 보조
 {rule_lines}
 """
 
-JOB_LABELS = {"design": "디자인", "dev": "개발", "video": "영상", "marketing": "마케팅"}
+JOB_LABELS = {
+    "design": "디자인",
+    "dev": "개발",
+    "video": "영상",
+    "marketing": "마케팅",
+    "writing": "글·콘텐츠",
+    "translation": "번역·통역",
+    "education": "교육",
+    "consulting": "컨설팅·기획",
+    "photography": "사진",
+    "other": "기타 프리랜서",
+}
 
 OUTPUT_SCHEMA: dict[str, Any] = {
     "type": "object",

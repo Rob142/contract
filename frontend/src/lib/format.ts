@@ -5,6 +5,12 @@ export const JOB_TYPE_LABELS: Record<JobType, string> = {
   dev: '개발자',
   video: '영상 제작자',
   marketing: '마케터',
+  writing: '작가·콘텐츠 작성자',
+  translation: '번역가·통역사',
+  education: '강사·교육 전문가',
+  consulting: '컨설턴트·기획자',
+  photography: '사진가',
+  other: '기타 프리랜서',
 }
 
 export const LLM_MODE_LABELS: Record<LlmMode, string> = {
@@ -41,6 +47,12 @@ export const JOB_TYPE_SHORT: Record<JobType, string> = {
   dev: '개발',
   video: '영상',
   marketing: '마케팅',
+  writing: '글·콘텐츠',
+  translation: '번역·통역',
+  education: '교육',
+  consulting: '컨설팅·기획',
+  photography: '사진',
+  other: '기타',
 }
 
 // ---------------------------------------------------------------- 금액 (십진 문자열 그대로, 부동소수점 금지)

@@ -1435,7 +1435,7 @@ export interface components {
              * Job Type
              * @enum {string}
              */
-            job_type: "dev" | "design" | "video" | "marketing";
+            job_type: "dev" | "design" | "video" | "marketing" | "writing" | "translation" | "education" | "consulting" | "photography" | "other";
             /** Rules Version */
             rules_version: string | null;
             /** Prompt Version */
@@ -1459,7 +1459,7 @@ export interface components {
              */
             llm_mode: "commercial" | "local";
             /** Job Type */
-            job_type?: ("dev" | "design" | "video" | "marketing") | null;
+            job_type?: ("dev" | "design" | "video" | "marketing" | "writing" | "translation" | "education" | "consulting" | "photography" | "other") | null;
             /**
              * Consent External
              * @default false
@@ -1597,7 +1597,7 @@ export interface components {
             /** Title */
             title?: string | null;
             /** Job Type */
-            job_type?: ("dev" | "design" | "video" | "marketing") | null;
+            job_type?: ("dev" | "design" | "video" | "marketing" | "writing" | "translation" | "education" | "consulting" | "photography" | "other") | null;
             /** Client Id */
             client_id?: string | null;
         };
@@ -1729,7 +1729,7 @@ export interface components {
              * Job Type
              * @enum {string}
              */
-            job_type: "dev" | "design" | "video" | "marketing";
+            job_type: "dev" | "design" | "video" | "marketing" | "writing" | "translation" | "education" | "consulting" | "photography" | "other";
             client: components["schemas"]["ClientRef"] | null;
             /**
              * Version Id
@@ -1803,7 +1803,7 @@ export interface components {
              * Job Type
              * @enum {string}
              */
-            job_type: "dev" | "design" | "video" | "marketing";
+            job_type: "dev" | "design" | "video" | "marketing" | "writing" | "translation" | "education" | "consulting" | "photography" | "other";
             client: components["schemas"]["ClientRef"] | null;
             /**
              * Version Id
@@ -1860,7 +1860,7 @@ export interface components {
             /** Title */
             title?: string | null;
             /** Job Type */
-            job_type?: ("dev" | "design" | "video" | "marketing") | null;
+            job_type?: ("dev" | "design" | "video" | "marketing" | "writing" | "translation" | "education" | "consulting" | "photography" | "other") | null;
         };
         /** Dashboard */
         Dashboard: {
@@ -2409,7 +2409,7 @@ export interface components {
              * Job Type
              * @enum {string}
              */
-            job_type: "dev" | "design" | "video" | "marketing";
+            job_type: "dev" | "design" | "video" | "marketing" | "writing" | "translation" | "education" | "consulting" | "photography" | "other";
             /** Steps */
             steps: string[];
         };
@@ -2876,7 +2876,7 @@ export interface components {
              * Job Type
              * @enum {string}
              */
-            job_type: "dev" | "design" | "video" | "marketing";
+            job_type: "dev" | "design" | "video" | "marketing" | "writing" | "translation" | "education" | "consulting" | "photography" | "other";
             /** Period Start */
             period_start: string | null;
             /** Period End */
@@ -2911,7 +2911,7 @@ export interface components {
              * Job Type
              * @enum {string}
              */
-            job_type: "dev" | "design" | "video" | "marketing";
+            job_type: "dev" | "design" | "video" | "marketing" | "writing" | "translation" | "education" | "consulting" | "photography" | "other";
             /** Period Start */
             period_start: string | null;
             /** Period End */
@@ -2996,7 +2996,7 @@ export interface components {
             /** New Client Name */
             new_client_name?: string | null;
             /** Job Type */
-            job_type?: ("dev" | "design" | "video" | "marketing") | null;
+            job_type?: ("dev" | "design" | "video" | "marketing" | "writing" | "translation" | "education" | "consulting" | "photography" | "other") | null;
             /** Start Date */
             start_date?: string | null;
             /** Due Date */
@@ -3027,7 +3027,7 @@ export interface components {
              * Job Type
              * @enum {string}
              */
-            job_type: "dev" | "design" | "video" | "marketing";
+            job_type: "dev" | "design" | "video" | "marketing" | "writing" | "translation" | "education" | "consulting" | "photography" | "other";
             /**
              * Status
              * @enum {string}
@@ -3091,7 +3091,7 @@ export interface components {
              * Job Type
              * @enum {string}
              */
-            job_type: "dev" | "design" | "video" | "marketing";
+            job_type: "dev" | "design" | "video" | "marketing" | "writing" | "translation" | "education" | "consulting" | "photography" | "other";
             /** Start Date */
             start_date: string | null;
             /** Due Date */
@@ -3119,7 +3119,7 @@ export interface components {
              * Job Type
              * @enum {string}
              */
-            job_type: "dev" | "design" | "video" | "marketing";
+            job_type: "dev" | "design" | "video" | "marketing" | "writing" | "translation" | "education" | "consulting" | "photography" | "other";
             /** Start Date */
             start_date?: string | null;
             /** Due Date */
@@ -3159,7 +3159,7 @@ export interface components {
              * Job Type
              * @enum {string}
              */
-            job_type: "dev" | "design" | "video" | "marketing";
+            job_type: "dev" | "design" | "video" | "marketing" | "writing" | "translation" | "education" | "consulting" | "photography" | "other";
             /**
              * Status
              * @enum {string}
@@ -3202,7 +3202,7 @@ export interface components {
             /** Client Id */
             client_id?: string | null;
             /** Job Type */
-            job_type?: ("dev" | "design" | "video" | "marketing") | null;
+            job_type?: ("dev" | "design" | "video" | "marketing" | "writing" | "translation" | "education" | "consulting" | "photography" | "other") | null;
             /** Start Date */
             start_date?: string | null;
             /** Due Date */
@@ -3270,7 +3270,7 @@ export interface components {
              * Job Type
              * @enum {string}
              */
-            job_type: "dev" | "design" | "video" | "marketing";
+            job_type: "dev" | "design" | "video" | "marketing" | "writing" | "translation" | "education" | "consulting" | "photography" | "other";
             /** Period Start */
             period_start: string | null;
             /** Period End */
@@ -3294,7 +3294,7 @@ export interface components {
              * Job Type
              * @enum {string}
              */
-            job_type: "dev" | "design" | "video" | "marketing";
+            job_type: "dev" | "design" | "video" | "marketing" | "writing" | "translation" | "education" | "consulting" | "photography" | "other";
             /** Progress Pct */
             progress_pct: number | null;
             /** Freelancer Name */
@@ -3398,7 +3398,7 @@ export interface components {
              * Job Type
              * @enum {string}
              */
-            job_type: "dev" | "design" | "video" | "marketing";
+            job_type: "dev" | "design" | "video" | "marketing" | "writing" | "translation" | "education" | "consulting" | "photography" | "other";
             /** Agree Terms */
             agree_terms: boolean;
         };
@@ -3843,7 +3843,7 @@ export interface components {
              * Job Type
              * @enum {string}
              */
-            job_type: "dev" | "design" | "video" | "marketing";
+            job_type: "dev" | "design" | "video" | "marketing" | "writing" | "translation" | "education" | "consulting" | "photography" | "other";
             /**
              * Default Llm Mode
              * @enum {string}
@@ -3888,7 +3888,7 @@ export interface components {
             /** Name */
             name?: string | null;
             /** Job Type */
-            job_type?: ("dev" | "design" | "video" | "marketing") | null;
+            job_type?: ("dev" | "design" | "video" | "marketing" | "writing" | "translation" | "education" | "consulting" | "photography" | "other") | null;
             /** Default Llm Mode */
             default_llm_mode?: ("ask" | "commercial" | "local") | null;
             /** Commercial Llm Model */
