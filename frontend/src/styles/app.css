@@ -3037,3 +3037,29 @@ button.project-card:focus-visible {
 .consent-group legend { font-weight: 600; padding-inline: 4px; }
 .consent-group .checkbox { min-block-size: 48px; }
 .payment-presets { display: grid; gap: 4px; margin-block: 8px 16px; }
+
+/* 같은 마감일 묶음은 카드와 다른 테두리 및 날짜 제목으로 구별한다. */
+.deadline-group { border: 2px solid #809ac7; background: #eaf0fb; border-radius: 14px; padding: 10px; min-width: 0; }
+.deadline-tone-1 { border-color: #b493cf; background: #f3edf9; }
+.deadline-tone-2 { border-color: #be9957; background: #faf3e6; }
+.deadline-group-title { font-weight: 700; font-size: 13px; margin-block-end: 10px; }
+.deadline-group-list { display: grid; gap: 12px; list-style: none; margin: 0; padding: 0; }
+.task-drag-handle { position: absolute; inset-block-start: 6px; inset-inline-end: 6px; width: 36px; height: 36px; border: 0; background: transparent; border-radius: 6px; font-size: 22px; cursor: grab; color: #52616a; -webkit-user-select: none; user-select: none; }
+.task-drag-handle:active { cursor: grabbing; }
+.task-drag-handle:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.task-card:has(.task-drag-handle:focus-visible) { outline: 2px solid var(--color-primary); }
+.task-card-button { padding-inline-end: 40px; }
+.kanban-column { min-height: 210px; }
+.kanban-column.is-over { border-color: var(--color-primary); background: #e1f1ec; }
+.kanban-empty { color: #52616a; font-size: 13px; padding: 24px 8px; text-align: center; }
+.add-task-form { display: grid; gap: 10px; }
+
+.kanban-announcement { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* 포인터 드래그: 카드 전체는 마우스로, 손잡이는 터치로도 이동한다. */
+.kanban { align-items: stretch; }
+.kanban-column { min-height: 260px; }
+.kanban-column.is-collapsed { align-self: stretch; }
+.task-card-button { cursor: grab; -webkit-user-select: none; user-select: none; }
+.task-card.is-dragging, .task-card.is-dragging * { cursor: grabbing; }
+.task-drag-handle { touch-action: none; }

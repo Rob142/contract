@@ -110,6 +110,9 @@ export function TaskDialog({ task, onClose }: { task: Task; onClose: () => void 
         <h3 id="checklist-title">
           체크리스트 <span className="muted">{task.checklist.length > 0 && `${done} / ${task.checklist.length}`}</span>
         </h3>
+        <p className="field-hint" role="status">
+          {task.status === 'doing' ? '항목을 모두 체크하면 자동으로 완료 열로 이동해요.' : task.status === 'done' ? '완료한 작업이에요. 다시 시작하려면 상태를 진행 중으로 바꿔 주세요.' : '할 일 상태에서는 모두 체크해도 자동 완료되지 않아요.'}
+        </p>
         {task.checklist.length > 0 && (
           <ul>
             {task.checklist.map((item) => (
@@ -118,6 +121,7 @@ export function TaskDialog({ task, onClose }: { task: Task; onClose: () => void 
                   <input
                     type="checkbox"
                     checked={item.is_done}
+                    disabled={toggleItem.isPending}
                     onChange={(e) => toggleItem.mutate({ id: item.id, is_done: e.target.checked })}
                   />
                   <span className={item.is_done ? 'is-done' : undefined}>{item.content}</span>

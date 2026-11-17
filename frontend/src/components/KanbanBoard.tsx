@@ -1,9 +1,13 @@
-import { useState, type CSSProperties, type DragEvent, type FormEvent } from 'react'
+import { useState, type CSSProperties, type PointerEvent, type FormEvent } from 'react'
 
 import type { User } from '../api/auth'
 import { messageOf } from '../api/messages'
 import { useCreateTask, useMoveTask, type Task, type TaskStatus } from '../api/projects'
 import { avatarInitial, daysBetween, formatShortDate, localDateOf } from '../lib/format'
+import { groupTasksByDeadline } from '../lib/taskGroups'
+import { useKanbanPointer } from '../lib/useKanbanPointer'
+import type { DropTarget } from '../lib/kanbanDrop'
+import { SelectField, TextField } from './Field'
 import { STATUS_LABELS, TaskDialog } from './TaskDialog'
 
 const COLUMNS: TaskStatus[] = ['todo', 'doing', 'done']
@@ -27,28 +31,24 @@ function saveCollapsed(value: TaskStatus[]) {
   }
 }
 
-type DropTarget = { status: TaskStatus; index: number }
-
 function TaskCard({
   task,
   user,
   today,
   dragging,
   dropBefore,
+  grouped,
   onOpen,
-  onDragStart,
-  onDragEnd,
-  onDragOverCard,
+  onPointerDown,
 }: {
   task: Task
   user: User
   today: string
   dragging: boolean
   dropBefore: boolean
+  grouped: boolean
   onOpen: () => void
-  onDragStart: () => void
-  onDragEnd: () => void
-  onDragOverCard: (e: DragEvent<HTMLElement>) => void
+  onPointerDown: (e: PointerEvent<HTMLElement>) => void
 }) {
   const checklistDone = task.checklist.filter((i) => i.is_done).length
   const overdue = task.status !== 'done' && task.due_date !== null && daysBetween(today, task.due_date) < 0
@@ -56,15 +56,14 @@ function TaskCard({
   return (
     <li
       className={['task-card', dragging && 'is-dragging', dropBefore && 'drop-before'].filter(Boolean).join(' ')}
-      draggable
-      onDragStart={(e) => {
-        e.dataTransfer.effectAllowed = 'move'
-        e.dataTransfer.setData('text/plain', task.id)
-        onDragStart()
-      }}
-      onDragEnd={onDragEnd}
-      onDragOver={onDragOverCard}
+      data-task-id={task.id}
+      onPointerDown={onPointerDown}
+      onDragStart={(e) => e.preventDefault()}
     >
+      <button type="button" className="task-drag-handle"
+        aria-label={`${task.title} 이동`} title="끌어서 다른 상태로 이동 · 클릭하면 상태 선택"
+        onClick={onOpen}
+      >⠿</button>
       <button type="button" className="task-card-button" onClick={onOpen}>
         {task.label && <span className="badge badge-gray">{task.label}</span>}
         <strong className="task-title">{task.title}</strong>
@@ -76,7 +75,7 @@ function TaskCard({
           </span>
         ) : null}
         <span className="task-foot">
-          <span className={overdue ? 'task-date is-overdue' : 'task-date'}>
+          <span className={overdue ? 'task-date is-overdue' : 'task-date'} hidden={grouped && task.status !== 'done'}>
             {task.status === 'done' && task.completed_at
               ? `완료 ${formatShortDate(localDateOf(task.completed_at))}`
               : task.due_date
@@ -95,12 +94,14 @@ function TaskCard({
 function AddTaskForm({ projectId, status, onDone }: { projectId: string; status: TaskStatus; onDone: () => void }) {
   const create = useCreateTask(projectId)
   const [title, setTitle] = useState('')
+  const [selectedStatus, setSelectedStatus] = useState<TaskStatus>(status)
+  const [dueDate, setDueDate] = useState('')
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault()
     const value = title.trim()
     if (!value) return onDone()
-    create.mutate({ title: value, status }, { onSuccess: () => setTitle('') })
+    create.mutate({ title: value, status: selectedStatus, due_date: dueDate || null }, { onSuccess: onDone })
   }
 
   return (
@@ -115,6 +116,11 @@ function AddTaskForm({ projectId, status, onDone }: { projectId: string; status:
         onChange={(e) => setTitle(e.target.value)}
         onKeyDown={(e) => e.key === 'Escape' && onDone()}
       />
+      <SelectField label="추가할 상태" value={selectedStatus}
+        options={COLUMNS.map((value) => ({ value, label: STATUS_LABELS[value] }))}
+        onChange={(e) => setSelectedStatus(e.target.value as TaskStatus)} />
+      <TextField label="마감일 (선택)" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)}
+        hint="같은 열에서 마감일이 같은 작업은 함께 묶여요. 비워 두어도 돼요." />
       <div className="add-task-actions">
         <button type="submit" className="btn btn-primary" disabled={create.isPending}>
           추가
@@ -145,8 +151,7 @@ export function KanbanBoard({
   setAddingTo: (status: TaskStatus | null) => void
 }) {
   const move = useMoveTask(projectId)
-  const [dragId, setDragId] = useState<string | null>(null)
-  const [target, setTarget] = useState<DropTarget | null>(null)
+  const [announcement, setAnnouncement] = useState('')
   const [openTaskId, setOpenTaskId] = useState<string | null>(null)
   const [collapsed, setCollapsed] = useState<TaskStatus[]>(loadCollapsed)
   const toggleColumn = (status: TaskStatus) =>
@@ -161,19 +166,10 @@ export function KanbanBoard({
   } as CSSProperties
 
   const byColumn = (status: TaskStatus) =>
-    tasks.filter((t) => t.status === status).sort((a, b) => a.position - b.position)
+    groupTasksByDeadline(tasks.filter((t) => t.status === status).sort((a, b) => a.position - b.position)).flatMap((group) => group.tasks)
   const openTask = tasks.find((t) => t.id === openTaskId)
 
-  const resetDrag = () => {
-    setDragId(null)
-    setTarget(null)
-  }
-
-  const onDrop = (e: DragEvent<HTMLElement>, status: TaskStatus) => {
-    e.preventDefault()
-    const taskId = dragId ?? e.dataTransfer.getData('text/plain')
-    const index = target?.status === status ? target.index : Number.MAX_SAFE_INTEGER
-    resetDrag()
+  const commitMove = (taskId: string, { status, index }: DropTarget) => {
     if (!taskId) return
     const current = tasks.find((t) => t.id === taskId)
     if (!current) return
@@ -181,8 +177,12 @@ export function KanbanBoard({
     const column = byColumn(status).filter((t) => t.id !== taskId)
     const clamped = Math.min(index, column.length)
     if (current.status === status && byColumn(status).indexOf(current) === clamped) return
-    move.mutate({ taskId, status, index: clamped })
+    move.mutate({ taskId, status, index: clamped }, {
+      onSuccess: () => setAnnouncement(`${current.title} 작업을 ${STATUS_LABELS[status]} 열로 이동했어요.`),
+    })
   }
+
+  const { dragId, target, onPointerDown, onClickCapture } = useKanbanPointer(tasks, commitMove)
 
   return (
     <>
@@ -191,7 +191,9 @@ export function KanbanBoard({
           {messageOf(move.error)} 화면을 서버 상태로 되돌렸어요.
         </div>
       )}
-      <div className="kanban" style={columnsStyle}>
+      <div role="status" aria-live="polite" className="kanban-announcement">{announcement}</div>
+      <p className="field-hint">카드 본문이나 ⠿ 손잡이를 잡아 다른 열로 이동하세요. 터치 화면에서는 손잡이를 사용하세요. 클릭하면 상세가 열려요. 마감일은 선택 사항이에요.</p>
+      <div className="kanban" style={columnsStyle} onClickCapture={onClickCapture}>
         {COLUMNS.map((status) => {
           const items = byColumn(status)
           // 드롭 위치 계산은 끌고 있는 카드를 뺀 목록 기준 (서버 규칙과 같다)
@@ -204,11 +206,7 @@ export function KanbanBoard({
                 key={status}
                 className={target?.status === status ? 'kanban-column is-collapsed is-over' : 'kanban-column is-collapsed'}
                 aria-labelledby={`col-${status}`}
-                onDragOver={(e) => {
-                  e.preventDefault()
-                  if (target?.status !== status) setTarget({ status, index: others.length })
-                }}
-                onDrop={(e) => onDrop(e, status)}
+                data-kanban-status={status}
               >
                 <button
                   type="button"
@@ -229,11 +227,7 @@ export function KanbanBoard({
               key={status}
               className={target?.status === status ? 'kanban-column is-over' : 'kanban-column'}
               aria-labelledby={`col-${status}`}
-              onDragOver={(e) => {
-                e.preventDefault()
-                if (target?.status !== status) setTarget({ status, index: others.length })
-              }}
-              onDrop={(e) => onDrop(e, status)}
+              data-kanban-status={status}
             >
               <header className="kanban-head">
                 <h2 id={`col-${status}`}>
@@ -262,10 +256,12 @@ export function KanbanBoard({
               </header>
 
               <ul className="kanban-list">
-                {items.map((task) => (
+                {groupTasksByDeadline(items).map((group) => {
+                  const cards = group.tasks.map((task) => (
                   <TaskCard
                     key={task.id}
                     task={task}
+                    grouped={group.grouped}
                     user={user}
                     today={today}
                     dragging={task.id === dragId}
@@ -276,19 +272,17 @@ export function KanbanBoard({
                       others[target.index]?.id === task.id
                     }
                     onOpen={() => setOpenTaskId(task.id)}
-                    onDragStart={() => setDragId(task.id)}
-                    onDragEnd={resetDrag}
-                    onDragOverCard={(e) => {
-                      e.preventDefault()
-                      e.stopPropagation()
-                      if (task.id === dragId) return
-                      const rect = e.currentTarget.getBoundingClientRect()
-                      const after = e.clientY > rect.top + rect.height / 2
-                      const index = others.findIndex((t) => t.id === task.id) + (after ? 1 : 0)
-                      if (target?.status !== status || target.index !== index) setTarget({ status, index })
-                    }}
+                    onPointerDown={(e) => { if (!move.isPending) onPointerDown(e, task.id) }}
                   />
-                ))}
+                  ))
+                  return group.grouped ? (
+                    <li key={group.key} className={`deadline-group deadline-tone-${Number(group.dueDate!.replaceAll('-', '')) % 3}`}>
+                      <div className="deadline-group-title">{formatShortDate(group.dueDate!)} 마감 · {group.tasks.length}개</div>
+                      <ul className="deadline-group-list">{cards}</ul>
+                    </li>
+                  ) : cards
+                })}
+                {items.length === 0 && <li className="kanban-empty">작업을 여기로 끌어 놓으세요.</li>}
                 {dragId !== null && target?.status === status && target.index >= others.length && (
                   <li className="drop-end" aria-hidden="true" />
                 )}

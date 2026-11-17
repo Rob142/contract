@@ -181,7 +181,11 @@ export function useToggleChecklistItem(projectId: string, taskId: string) {
   return useMutation({
     mutationFn: ({ id, is_done }: { id: string; is_done: boolean }) =>
       api<ChecklistItem>('PATCH', `/checklist-items/${id}`, { is_done }),
-    onSuccess: (item) => replaceChecklist(qc, projectId, taskId, (items) => items.map((i) => (i.id === item.id ? item : i))),
+    onSuccess: (item) => {
+      replaceChecklist(qc, projectId, taskId, (items) => items.map((i) => (i.id === item.id ? item : i)))
+      // 서버에서 체크리스트와 작업 완료 상태를 함께 변경한다.
+      invalidateProjectViews(qc)
+    },
   })
 }
 

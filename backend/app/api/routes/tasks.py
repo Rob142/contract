@@ -82,6 +82,7 @@ def add_checklist_item(
     db: Session = Depends(get_db),
 ) -> TaskChecklistItem:
     task = get_owned_task(db, user.id, task_id)
+    get_owned_project(db, user.id, task.project_id, lock=True)
     last = db.execute(
         select(func.max(TaskChecklistItem.position)).where(TaskChecklistItem.task_id == task.id)
     ).scalar_one()
@@ -101,13 +102,27 @@ def update_checklist_item(
     db: Session = Depends(get_db),
 ) -> TaskChecklistItem:
     item = _owned_item(db, user.id, item_id)
+    task = get_owned_task(db, user.id, item.task_id)
+    project = get_owned_project(db, user.id, task.project_id, lock=True)
+    db.refresh(task)
+    db.refresh(item)
     changes = body.model_dump(exclude_unset=True)
     if any(v is None for v in changes.values()):
         raise AppError(422, "validation_error", "fields cannot be null")
     if "content" in changes:
         item.content = changes["content"].strip()
+    checked_now = changes.get("is_done") is True and not item.is_done
     if "is_done" in changes:
         item.is_done = changes["is_done"]
+    db.flush()
+    if checked_now and task.status == "doing":
+        remaining = db.scalar(
+            select(func.count(TaskChecklistItem.id)).where(
+                TaskChecklistItem.task_id == task.id, TaskChecklistItem.is_done.is_(False)
+            )
+        )
+        if remaining == 0:
+            move_task(db, project, task, "done", 2**31 - 1)
     db.commit()
     return item
 
@@ -117,5 +132,7 @@ def delete_checklist_item(
     item_id: UUID, user: User = Depends(get_current_user), db: Session = Depends(get_db)
 ) -> None:
     item = _owned_item(db, user.id, item_id)
+    task = get_owned_task(db, user.id, item.task_id)
+    get_owned_project(db, user.id, task.project_id, lock=True)
     db.delete(item)
     db.commit()
