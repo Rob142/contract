@@ -17,6 +17,7 @@ import {
   type TaskStatus,
 } from '../api/projects'
 import { Dialog } from '../components/Dialog'
+import { TaskCalendar } from '../components/TaskCalendar'
 import { KanbanBoard } from '../components/KanbanBoard'
 import { UploadVersionButton } from '../components/UploadVersionButton'
 import { EditProjectDialog } from '../components/ProjectForm'
@@ -396,35 +397,23 @@ function BillingStages({
   )
 }
 
-/** 일정 탭: 마감일 순 목록 */
-function ScheduleList({ tasks, onOpen }: { tasks: Task[]; onOpen: (id: string) => void }) {
-  const dated = tasks.filter((t) => t.due_date).sort((a, b) => a.due_date!.localeCompare(b.due_date!))
-  const undated = tasks.filter((t) => !t.due_date)
-  if (tasks.length === 0) return <EmptyState title="아직 작업이 없어요." />
-
-  const row = (t: Task) => (
-    <li key={t.id}>
-      <button type="button" className="schedule-row" onClick={() => onOpen(t.id)}>
-        <div>
-          <strong className={t.status === 'done' ? 'is-done' : undefined}>{t.title}</strong>
-          <span className="muted">{STATUS_LABELS[t.status]}</span>
-        </div>
-        <span className="badge badge-gray">{t.due_date ? formatShortDate(t.due_date) : '미정'}</span>
-      </button>
-    </li>
-  )
-
-  return (
-    <div className="card">
-      <ul className="row-list">{dated.map(row)}</ul>
-      {undated.length > 0 && (
-        <>
-          <h3 className="list-subhead">마감일 없음</h3>
-          <ul className="row-list">{undated.map(row)}</ul>
-        </>
-      )}
-    </div>
-  )
+/** 일정 탭: 작업 마감일을 달력에 표시한다. */
+function ScheduleCalendar({ tasks, onOpen, focusTaskId }: { tasks: Task[]; onOpen: (id: string) => void; focusTaskId: string | null }) {
+  const [month, setMonth] = useState(() => (tasks.find((task) => task.id === focusTaskId)?.due_date ?? todayIso()).slice(0, 7))
+  const undated = tasks.filter((task) => !task.due_date)
+  return <div className="card">
+    <TaskCalendar month={month} onMonthChange={setMonth} today={todayIso()} onOpen={onOpen}
+      entries={tasks.filter((task) => task.due_date).map((task) => ({ id: task.id, title: task.title, dueDate: task.due_date!, status: task.status }))} />
+    {undated.length > 0 && <section className="calendar-undated">
+      <h3>마감일 미정 · {undated.length}개</h3>
+      <p className="field-hint">아래 작업은 마감일을 정하면 달력에도 표시돼요.</p>
+      <ul className="row-list">{undated.map((task) => <li key={task.id}>
+        <button type="button" className="schedule-row" onClick={() => onOpen(task.id)}>
+          <strong>{task.title}</strong><span className="muted">{STATUS_LABELS[task.status]}</span>
+        </button>
+      </li>)}</ul>
+    </section>}
+  </div>
 }
 
 /** 09 프로젝트 상세 (칸반) */
@@ -437,7 +426,7 @@ export function ProjectDetailPage() {
   const [tab, setTab] = useState<Tab>(searchParams.get('tab') === 'schedule' ? 'schedule' : 'kanban')
   const [editing, setEditing] = useState(false)
   const [addingTo, setAddingTo] = useState<TaskStatus | null>(null)
-  const [openTaskId, setOpenTaskId] = useState<string | null>(null)
+  const [openTaskId, setOpenTaskId] = useState<string | null>(searchParams.get('task'))
   const [linkingContract, setLinkingContract] = useState<'link' | 'replace' | null>(null)
   const [boardOpen, setBoardOpen] = useState(loadBoardOpen)
   const toggleBoard = () => {
@@ -556,7 +545,7 @@ export function ProjectDetailPage() {
           setAddingTo={setAddingTo}
         />
       ) : (
-        <ScheduleList tasks={tasks.data} onOpen={setOpenTaskId} />
+        <ScheduleCalendar tasks={tasks.data} onOpen={setOpenTaskId} focusTaskId={searchParams.get('task')} />
       )}
 
       <BillingStages

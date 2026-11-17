@@ -2,10 +2,23 @@ import { useState } from 'react'
 import { Link, useOutletContext } from 'react-router'
 
 import type { User } from '../api/auth'
-import { useDashboard, type Dashboard } from '../api/projects'
+import { useCalendarTasks, useDashboard, type Dashboard } from '../api/projects'
+import { TaskCalendar } from '../components/TaskCalendar'
 import { NewProjectDialog } from '../components/ProjectForm'
 import { EmptyState, LoadError, Loading, ProgressBar } from '../components/ui'
-import { daysBetween, displayName, formatMonthDay, formatShortDate, formatWon, todayLine } from '../lib/format'
+import { displayName, formatMonthDay, formatShortDate, formatWon, todayLine } from '../lib/format'
+
+function DashboardCalendar({ today }: { today: string }) {
+  const [month, setMonth] = useState(today.slice(0, 7))
+  const calendar = useCalendarTasks(month)
+  return <>
+    {calendar.isError && <LoadError error={calendar.error} onRetry={() => void calendar.refetch()} />}
+    <TaskCalendar month={month} onMonthChange={setMonth} today={today} loading={calendar.isPending}
+      entries={(calendar.data ?? []).map((task) => ({ id: task.task_id, title: task.title,
+        dueDate: task.due_date, subtitle: task.project_name,
+        href: `/projects/${task.project_id}?tab=schedule&task=${task.task_id}` }))} />
+  </>
+}
 
 const PAYMENT_STATUS: Record<Dashboard['invoices'][number]['payment_status'], string> = {
   unpaid: '미입금',
@@ -167,7 +180,7 @@ export function DashboardPage() {
         />
       </div>
 
-      <div className="dashboard-grid">
+      <div className="dashboard-calendar-layout">
         <section className="card" aria-labelledby="active-projects">
           <div className="card-head">
             <h2 id="active-projects" className="card-title">
@@ -212,26 +225,7 @@ export function DashboardPage() {
           <h2 id="upcoming" className="card-title">
             다가오는 일정
           </h2>
-          {d.upcoming.length === 0 ? (
-            <EmptyState title="마감일이 정해진 작업이 없어요." />
-          ) : (
-            <ul className="row-list">
-              {d.upcoming.map((t) => {
-                const soon = daysBetween(d.today, t.due_date) <= 2
-                return (
-                  <li key={t.task_id}>
-                    <Link to={`/projects/${t.project_id}`} className="schedule-row">
-                      <div>
-                        <strong>{t.title}</strong>
-                        <span className="muted">{t.project_name}</span>
-                      </div>
-                      <span className={soon ? 'badge badge-amber' : 'badge badge-gray'}>{formatShortDate(t.due_date)}</span>
-                    </Link>
-                  </li>
-                )
-              })}
-            </ul>
-          )}
+          <DashboardCalendar today={d.today} />
           <div className="notice" style={{ marginTop: 16 }}>
             <p>
               {d.tasks_due_today > 0

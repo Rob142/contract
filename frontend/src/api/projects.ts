@@ -209,3 +209,11 @@ export function useUnlinkContract(id: string) {
     },
   })
 }
+
+/** 선택한 달의 진행 중 프로젝트에 속한 모든 미완료 마감 작업. */
+export function useCalendarTasks(month: string) {
+  return useQuery({
+    queryKey: ['projects', 'calendar', month],
+    queryFn: () => api<Dashboard['upcoming']>('GET', `/dashboard/calendar?month=${month}`),
+  })
+}

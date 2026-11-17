@@ -1,11 +1,12 @@
 from datetime import date, timedelta
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import and_, func, select, text
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.core.clock import month_range, today, week_range
+from app.core.errors import AppError
 from app.db.models import Project, Task, User
 from app.db.session import get_db
 from app.schemas.dashboard import Dashboard, OutstandingInvoice, Todo, UpcomingTask
@@ -349,3 +350,34 @@ def dashboard(user: User = Depends(get_current_user), db: Session = Depends(get_
         invoices=[OutstandingInvoice(**r) for r in invoice_rows],
         todos=build_todos(db, user.id, day),
     )
+
+
+@router.get("/dashboard/calendar", response_model=list[UpcomingTask])
+def calendar_tasks(
+    month: str = Query(pattern=r"^[1-9][0-9]{3}-(0[1-9]|1[0-2])$"),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> list[UpcomingTask]:
+    """선택한 달의 미완료 작업. 건수 제한으로 일정을 누락시키지 않는다."""
+    try:
+        start, end = month_range(date.fromisoformat(f"{month}-01"))
+    except (ValueError, OverflowError) as exc:
+        raise AppError(422, "validation_error", "invalid calendar month") from exc
+    rows = db.execute(
+        select(Task.id, Task.title, Task.due_date, Project.id.label("project_id"), Project.name)
+        .join(Project, Project.id == Task.project_id)
+        .where(
+            Project.owner_id == user.id,
+            Project.status == "active",
+            Task.status != "done",
+            Task.due_date >= start,
+            Task.due_date < end,
+        )
+        .order_by(Task.due_date, Task.position, Task.id)
+    ).all()
+    return [
+        UpcomingTask(
+            task_id=r.id, title=r.title, project_id=r.project_id, project_name=r.name, due_date=r.due_date
+        )
+        for r in rows
+    ]
