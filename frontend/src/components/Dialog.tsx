@@ -12,6 +12,7 @@ interface DialogProps {
 /** 네이티브 <dialog> 모달: 포커스 가두기·Esc 닫기·배경 비활성화를 브라우저가 처리한다. */
 export function Dialog({ open, onClose, title, children, footer, wide }: DialogProps) {
   const ref = useRef<HTMLDialogElement>(null)
+  const pressedOnBackdrop = useRef(false)
 
   useEffect(() => {
     const dialog = ref.current
@@ -30,9 +31,15 @@ export function Dialog({ open, onClose, title, children, footer, wide }: DialogP
         e.preventDefault()
         onClose()
       }}
+      onPointerDown={(e) => {
+        pressedOnBackdrop.current = e.target === ref.current
+      }}
       onClick={(e) => {
-        // 바깥(배경) 클릭으로 닫기
-        if (e.target === ref.current) onClose()
+        // 바깥(배경) 클릭으로 닫기. 누른 곳과 뗀 곳이 모두 배경일 때만 닫는다
+        // (창 안에서 글자를 드래그하다 바깥에서 손을 떼도 닫히지 않게)
+        const fromBackdrop = pressedOnBackdrop.current
+        pressedOnBackdrop.current = false
+        if (fromBackdrop && e.target === ref.current) onClose()
       }}
     >
       {open && (
