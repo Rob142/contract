@@ -9,6 +9,7 @@ import {
   useContract,
   useContractText,
   useDeleteContract,
+  useDeleteVersion,
   useRetryExtract,
   useUpdateFields,
   type ContractDetail,
@@ -371,6 +372,8 @@ export function ContractDetailPage() {
   const analysis = useAnalysis(contractId)
   const [view, setView] = useState<'pdf' | 'text'>('pdf')
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const removeVersion = useDeleteVersion(contractId)
+  const [confirmVersionDelete, setConfirmVersionDelete] = useState(false)
 
   if (contract.isError && contract.error instanceof ApiError && contract.error.status === 404) return <NotFoundPage />
   if (contract.isPending) return <Loading />
@@ -381,6 +384,9 @@ export function ContractDetailPage() {
   const showTarget = Boolean(
     targetProjectId && !c.project_id && targetProject.data && !targetProject.data.has_contract && targetProject.data.status !== 'archived',
   )
+  // 수정본(v2 이상)이고 아직 프로젝트에 반영하지 않았을 때만 그 수정본만 지울 수 있다
+  const canDeleteVersion = (c.versions?.length ?? 0) > 1 && c.version_no !== c.project_version_no
+  const previousVersionNo = c.versions?.find((v) => v.version_no < c.version_no)?.version_no
   const badge = STATUS_BADGE[c.status]
   const reviewPages = c.pages.filter((p) => p.needs_review)
 
@@ -476,6 +482,8 @@ export function ContractDetailPage() {
             )
           ) : (
             <PdfViewer
+              // 같은 주소라도 버전이 바뀌면(수정본 삭제 등) PDF를 다시 읽는다
+              key={c.version_id}
               url={contractFileUrl(c.id)}
               page={page}
               onPageChange={(p) => {
@@ -535,6 +543,31 @@ export function ContractDetailPage() {
             <p className="muted small" style={{ margin: 0 }}>
               원본은 비공개 저장소에만 보관되고, 본인만 열람할 수 있어요.
             </p>
+            {canDeleteVersion && (
+              <>
+                <button
+                  type="button"
+                  className="btn btn-danger-text"
+                  disabled={removeVersion.isPending || isProcessing(c.status)}
+                  onClick={() =>
+                    confirmVersionDelete
+                      ? removeVersion.mutate(c.version_no, {
+                          onSuccess: () => {
+                            setConfirmVersionDelete(false)
+                            setPage(1)
+                            setHighlight(null)
+                          },
+                        })
+                      : setConfirmVersionDelete(true)
+                  }
+                >
+                  {confirmVersionDelete
+                    ? `정말 삭제할까요? v${c.version_no} 수정본만 지우고 v${previousVersionNo ?? 1}로 돌아가요`
+                    : `수정본(v${c.version_no})만 삭제`}
+                </button>
+                {removeVersion.isError && <p className="field-error">{messageOf(removeVersion.error)}</p>}
+              </>
+            )}
             <button
               type="button"
               className="btn btn-danger-text"
@@ -545,7 +578,11 @@ export function ContractDetailPage() {
                   : setConfirmDelete(true)
               }
             >
-              {confirmDelete ? '정말 삭제할까요? 원본과 추출 결과가 모두 지워져요' : '계약서 삭제'}
+              {confirmDelete
+                ? (c.versions?.length ?? 0) > 1
+                  ? '정말 삭제할까요? 원본을 포함한 모든 버전과 추출 결과가 지워져요'
+                  : '정말 삭제할까요? 원본과 추출 결과가 모두 지워져요'
+                : '계약서 삭제'}
             </button>
             {remove.isError && <p className="field-error">{messageOf(remove.error)}</p>}
           </section>

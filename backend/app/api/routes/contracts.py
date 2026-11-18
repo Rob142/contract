@@ -15,7 +15,7 @@ from app.api.deps import get_current_user
 from app.core.audit import record_audit
 from app.core.clock import now_utc, today
 from app.core.config import get_settings
-from app.core.errors import AppError, conflict
+from app.core.errors import AppError, conflict, not_found
 from app.core.idempotency import require_idempotency_key, run_idempotent
 from app.core.pagination import PageParams, encode_cursor, page_params
 from app.core.storage import FileStorage, FileTooLargeError, get_storage
@@ -433,6 +433,69 @@ def delete_contract(
     # DB에서 지운 뒤 저장소 정리 (실패해도 고아 객체만 남고 접근 경로는 없다)
     for f in files:
         storage.delete(f.object_key)
+
+
+@router.delete("/{contract_id}/versions/{version_no}", response_model=ContractDetail)
+def delete_contract_version(
+    contract_id: UUID,
+    version_no: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    storage: FileStorage = Depends(get_storage),
+) -> ContractDetail:
+    """최신 수정본만 지우고 바로 앞 버전으로 돌아간다. 이전 버전과 계약 자체는 그대로 둔다.
+
+    프로젝트에 반영한 버전, 처리 중인 버전, 하나뿐인 버전(v1)은 지우지 않는다.
+    version_no를 받는 이유: 다른 탭에서 새 버전이 올라온 뒤 엉뚱한 버전을 지우지 않도록.
+    """
+    contract, _, _ = get_owned_contract(db, user.id, contract_id)
+    db.execute(select(Contract).where(Contract.id == contract.id).with_for_update())
+    versions = list(
+        db.execute(
+            select(ContractVersion)
+            .where(ContractVersion.contract_id == contract.id)
+            .order_by(ContractVersion.version_no.desc())
+        ).scalars()
+    )
+    target = next((v for v in versions if v.version_no == version_no), None)
+    if target is None:
+        raise not_found("contract_version")
+    if target is not versions[0]:
+        raise conflict("version_not_latest", "only the latest version can be deleted")
+    if len(versions) == 1:
+        raise conflict("only_version", "delete the contract instead of its only version")
+
+    busy = db.execute(
+        select(
+            exists().where(
+                AnalysisJob.contract_version_id == target.id, AnalysisJob.status.in_(ACTIVE_JOB_STATUSES)
+            )
+        )
+    ).scalar()
+    if busy:
+        raise conflict("contract_busy", "cancel the running job before deleting the version")
+    in_use = db.execute(select(exists().where(Project.contract_version_id == target.id))).scalar()
+    if in_use:
+        raise conflict("version_in_use", "this version is already applied to a project")
+
+    file_row = db.get(StoredFile, target.file_id)
+    record_audit(
+        db,
+        actor_id=user.id,
+        action="contract.version_delete",
+        target_type="contract",
+        target_id=contract.id,
+        version_no=target.version_no,
+    )
+    db.delete(target)
+    db.flush()
+    if file_row is not None:
+        db.delete(file_row)
+    db.commit()
+    # DB에서 지운 뒤 저장소 정리 (실패해도 고아 객체만 남고 접근 경로는 없다)
+    if file_row is not None:
+        storage.delete(file_row.object_key)
+    return build_detail(db, user.id, contract.id)
 
 
 # ---------------------------------------------------------------- 계약서 → 프로젝트 (07)

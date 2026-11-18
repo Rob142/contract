@@ -544,6 +544,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/contracts/{contract_id}/versions/{version_no}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Contract Version
+         * @description 최신 수정본만 지우고 바로 앞 버전으로 돌아간다. 이전 버전과 계약 자체는 그대로 둔다.
+         *
+         *     프로젝트에 반영한 버전, 처리 중인 버전, 하나뿐인 버전(v1)은 지우지 않는다.
+         *     version_no를 받는 이유: 다른 탭에서 새 버전이 올라온 뒤 엉뚱한 버전을 지우지 않도록.
+         */
+        delete: operations["delete_contract_version_api_v1_contracts__contract_id__versions__version_no__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/contracts/{contract_id}/project-draft": {
         parameters: {
             query?: never;
@@ -4084,6 +4107,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UploadResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_contract_version_api_v1_contracts__contract_id__versions__version_no__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                contract_id: string;
+                version_no: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContractDetail"];
                 };
             };
             /** @description Validation Error */

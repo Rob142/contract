@@ -341,3 +341,70 @@ def test_dashboard_suggests_pending_revision(client: TestClient) -> None:
     todo = next(t for t in todos if t["kind"] == "contract_revision")
     assert todo["target"] == "project_revision" and todo["target_id"] == project["id"]
     assert "v1 → v2" in todo["detail"]
+
+
+def test_delete_latest_version_restores_previous(client: TestClient) -> None:
+    """수정본(최신 버전)만 지우면 이전 버전이 다시 현재가 되고, 계약과 v1 원본은 남는다"""
+    from app.core.storage import get_storage
+
+    register(client)
+    contract_id = confirmed_contract(client)
+
+    # 하나뿐인 버전은 지울 수 없다 (계약 삭제를 써야 한다)
+    res = client.delete(f"{API}/contracts/{contract_id}/versions/1")
+    assert res.status_code == 409 and res.json()["error"]["code"] == "only_version"
+
+    res = client.post(
+        f"{API}/contracts/{contract_id}/versions",
+        files={"file": ("revised.pdf", text_pdf([CONTRACT_LINES + ["Revised"]]), "application/pdf")},
+    )
+    assert res.status_code == 202
+    # 추출 중에는 지울 수 없다
+    res = client.delete(f"{API}/contracts/{contract_id}/versions/2")
+    assert res.status_code == 409 and res.json()["error"]["code"] == "contract_busy"
+    run_worker_once()
+
+    with get_engine().connect() as conn:
+        v2_key = conn.execute(
+            text(
+                "SELECT f.object_key FROM files f JOIN contract_versions cv ON cv.file_id = f.id "
+                "WHERE cv.version_no = 2"
+            )
+        ).scalar_one()
+
+    # 최신이 아닌 버전, 없는 버전은 지울 수 없다
+    res = client.delete(f"{API}/contracts/{contract_id}/versions/1")
+    assert res.status_code == 409 and res.json()["error"]["code"] == "version_not_latest"
+    assert client.delete(f"{API}/contracts/{contract_id}/versions/9").status_code == 404
+
+    res = client.delete(f"{API}/contracts/{contract_id}/versions/2")
+    assert res.status_code == 200, res.text
+    detail = res.json()
+    assert detail["version_no"] == 1 and detail["status"] == "ready"
+    assert [v["version_no"] for v in detail["versions"]] == [1]
+    with get_engine().connect() as conn:
+        assert conn.execute(text("SELECT count(*) FROM contract_versions")).scalar() == 1
+        assert conn.execute(text("SELECT count(*) FROM files")).scalar() == 1
+    with pytest.raises(FileNotFoundError):
+        get_storage().open(v2_key)
+    assert client.get(f"{API}/contracts/{contract_id}/file").status_code == 200
+
+    # 다시 올리면 v2 번호를 다시 쓴다
+    upload_version(client, contract_id)
+    assert client.get(f"{API}/contracts/{contract_id}").json()["version_no"] == 2
+
+
+def test_delete_version_blocked_when_applied_or_foreign(client: TestClient) -> None:
+    project, _ = billed_deposit(client)
+    contract_id = project["contract_id"]
+    v2 = upload_version(client, contract_id)
+    assert revise(client, project, v2).status_code == 200
+
+    # 프로젝트에 반영한 버전은 지울 수 없다
+    res = client.delete(f"{API}/contracts/{contract_id}/versions/2")
+    assert res.status_code == 409 and res.json()["error"]["code"] == "version_in_use"
+
+    # 다른 사용자에게는 존재도 드러내지 않는다
+    client.post(f"{API}/auth/logout")
+    register(client, email="other@example.com")
+    assert client.delete(f"{API}/contracts/{contract_id}/versions/2").status_code == 404

@@ -152,6 +152,20 @@ export function useDeleteContract(id: string) {
   })
 }
 
+/** 최신 수정본만 지우고 바로 앞 버전으로 돌아간다 (이전 버전과 계약은 남는다) */
+export function useDeleteVersion(id: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (versionNo: number) => api<ContractDetail>('DELETE', `/contracts/${id}/versions/${versionNo}`),
+    onSuccess: (detail) => {
+      qc.setQueryData(contractKeys.detail(id), detail)
+      qc.removeQueries({ queryKey: contractKeys.text(id) })
+      void qc.invalidateQueries({ queryKey: ['contracts', 'list'] })
+      void qc.invalidateQueries({ queryKey: ['contracts', 'analysis', id] })
+    },
+  })
+}
+
 export function useUpdateContract(id: string) {
   const qc = useQueryClient()
   return useMutation({
